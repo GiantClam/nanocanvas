@@ -52,6 +52,34 @@ export interface AIData {
   timestamp: number;
 }
 
+// --- Refactoring Types ---
+
+export type AIProviderType = 'google' | 'vertex' | 'custom';
+
+export interface NanoCanvasConfig {
+  provider: AIProviderType;
+  apiKey?: string; // For Google GenAI
+  projectId?: string; // For Vertex AI
+  location?: string; // For Vertex AI
+  customEndpoint?: string; // For Proxy/Custom
+}
+
+export interface BillingEvent {
+  model: string;
+  operation: 'image' | 'video';
+  status: 'success' | 'error';
+  costMetric?: any; // e.g., token count, duration, or raw response meta
+  timestamp: number;
+}
+
+export type BillingCallback = (event: BillingEvent) => void;
+
+export interface NanoCanvasProps {
+  config?: NanoCanvasConfig;
+  initialCanvasState?: object; // Fabric JSON object
+  onBillingEvent?: BillingCallback;
+}
+
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;

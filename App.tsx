@@ -1,25 +1,36 @@
 
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState, useMemo } from 'react';
 import Toolbar from './components/Toolbar';
 import AIPanel from './components/AIPanel';
 import ContextMenu from './components/ContextMenu';
 import PromptPopup from './components/PromptPopup';
-import { ModelType, ContextMenuState, SelectedProperties, AIData } from './types';
-import { generateContent, generateVideoContent } from './services/geminiService';
+import { ModelType, ContextMenuState, SelectedProperties, AIData, NanoCanvasProps } from './types';
+import { NanoAI } from './services/aiService';
 
-function App() {
+// Default Config if none provided (for standalone running)
+const DEFAULT_API_KEY = "AIzaSyDEskyGfoYxEqC1QRA4H1vodqjMOFrmCQY";
+
+const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingEvent }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderLoopId = useRef<number | null>(null);
   
+  // Initialize AI Service
+  const aiService = useMemo(() => {
+    return new NanoAI(
+      config || { provider: 'google', apiKey: DEFAULT_API_KEY },
+      onBillingEvent
+    );
+  }, [config, onBillingEvent]);
+
   const [activeTool, setActiveTool] = useState('select');
   const [isGenerating, setIsGenerating] = useState(false);
   const [hasSelection, setHasSelection] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, hasSelection: false });
   const [promptPopup, setPromptPopup] = useState<{ visible: boolean; x: number; y: number; prompt: string }>({ visible: false, x: 0, y: 0, prompt: '' });
 
-  // Style State - Defaults updated for White Background
+  // Style State
   const [selectedProperties, setSelectedProperties] = useState<SelectedProperties>({
     stroke: '#000000',
     strokeWidth: 3,
@@ -28,7 +39,6 @@ function App() {
     type: ''
   });
 
-  // Helper to map hex colors to approximate names for prompt
   const getColorName = (hex: string): string => {
     const colors: {[key: string]: string} = {
       '#ffffff': 'white', '#000000': 'black', '#ef4444': 'red', '#f97316': 'orange',
@@ -38,7 +48,6 @@ function App() {
     return colors[hex.toLowerCase()] || 'colored';
   };
 
-  // --- RENDER LOOP FOR VIDEOS ---
   const startRenderLoop = () => {
     if (renderLoopId.current) return;
     const loop = () => {
@@ -49,11 +58,8 @@ function App() {
     };
     renderLoopId.current = window.requestAnimationFrame(loop);
   };
-  // ------------------------------
 
-  // Initialize Fabric
   useEffect(() => {
-    // Listen for custom event to open prompt popup from Fabric control
     const handleOpenPromptPopup = (e: CustomEvent) => {
       setPromptPopup({
         visible: true,
@@ -68,7 +74,6 @@ function App() {
       const fabric = window.fabric;
       if (!fabric) return;
 
-      // Customize Selection Styles
       fabric.Object.prototype.set({
         transparentCorners: false,
         cornerColor: '#ffffff',
@@ -80,8 +85,6 @@ function App() {
         borderDashArray: [4, 4]
       });
 
-      // --- CUSTOM CONTROL: AI Info Icon (...) ---
-      // This control appears on the top-right of AI-generated images
       fabric.Object.prototype.controls.aiInfo = new fabric.Control({
         x: 0.5,
         y: -0.5,
@@ -99,53 +102,44 @@ function App() {
           return false;
         },
         render: function(ctx: CanvasRenderingContext2D, left: number, top: number, styleOverride: any, fabricObject: any) {
-          // Only render if aiData exists
           if (!fabricObject.aiData) return;
-
           const size = 16;
           ctx.save();
           ctx.translate(left, top);
-          
-          // Background Circle
           ctx.beginPath();
           ctx.arc(0, 0, size/2 + 2, 0, Math.PI * 2);
-          ctx.fillStyle = '#6366f1'; // Indigo
+          ctx.fillStyle = '#6366f1';
           ctx.fill();
           ctx.strokeStyle = '#ffffff';
           ctx.lineWidth = 1;
           ctx.stroke();
-
-          // Dots (...)
           ctx.fillStyle = '#ffffff';
           ctx.beginPath();
           ctx.arc(-4, 0, 1.5, 0, Math.PI * 2);
           ctx.arc(0, 0, 1.5, 0, Math.PI * 2);
           ctx.arc(4, 0, 1.5, 0, Math.PI * 2);
           ctx.fill();
-
           ctx.restore();
         }
       });
-      // ------------------------------------------
 
       const initFabric = () => {
          const canvas = new fabric.Canvas(canvasRef.current, {
           width: containerRef.current?.clientWidth || window.innerWidth,
           height: containerRef.current?.clientHeight || window.innerHeight,
-          backgroundColor: '#ffffff', // White background
+          backgroundColor: '#ffffff',
           selection: true,
           preserveObjectStacking: true,
           fireRightClick: true,
           stopContextMenu: true
         });
 
-        // --- Grid Pattern Implementation ---
         const patternCanvas = document.createElement('canvas');
         patternCanvas.width = 20;
         patternCanvas.height = 20;
         const ctx = patternCanvas.getContext('2d');
         if (ctx) {
-          ctx.fillStyle = '#cbd5e1'; // Light slate dot
+          ctx.fillStyle = '#cbd5e1';
           ctx.beginPath();
           ctx.arc(10, 10, 1, 0, Math.PI * 2);
           ctx.fill();
@@ -157,11 +151,17 @@ function App() {
         });
         
         canvas.setBackgroundColor(gridPattern, canvas.renderAll.bind(canvas));
-        // -----------------------------------
-
         fabricRef.current = canvas;
 
-        // --- Interaction Logic Vars ---
+        // --- Load Initial JSON State if provided ---
+        if (initialCanvasState) {
+          canvas.loadFromJSON(initialCanvasState, () => {
+             canvas.renderAll();
+             console.log("Initial state loaded.");
+          });
+        }
+        // -------------------------------------------
+
         let isDragging = false;
         let isDrawingShape = false;
         let shapeOriginX = 0;
@@ -170,7 +170,6 @@ function App() {
         let lastPosX = 0;
         let lastPosY = 0;
 
-        // Snapping Logic
         canvas.on('object:moving', (e: any) => {
           const target = e.target;
           if (!target) return;
@@ -197,11 +196,8 @@ function App() {
           target.set({ left: newLeft, top: newTop });
         });
 
-        // Mouse Down
         canvas.on('mouse:down', function(opt: any) {
           const evt = opt.e;
-          
-          // Right Click
           if (opt.button === 3 || opt.e.button === 2) {
              const activeObj = canvas.getActiveObject();
              if (opt.target && opt.target !== activeObj) {
@@ -216,9 +212,8 @@ function App() {
              return;
           }
           setContextMenu(prev => ({ ...prev, visible: false }));
-          setPromptPopup(prev => ({ ...prev, visible: false })); // Close prompt popup on click
+          setPromptPopup(prev => ({ ...prev, visible: false }));
 
-          // Alt+Drag Panning
           if (evt.altKey === true) {
             isDragging = true;
             canvas.selection = false;
@@ -227,7 +222,6 @@ function App() {
             return;
           }
 
-          // Shape Drawing
           const pointer = canvas.getPointer(evt);
           const tool = (canvas as any).customTool; 
           const props = (canvas as any).customProps || {};
@@ -264,9 +258,8 @@ function App() {
                 });
              }
              canvas.add(activeShape);
-             canvas.selection = false; // Disable group selection while drawing
+             canvas.selection = false; 
           } else if (tool === 'text') {
-             // Click to add text
              const text = new fabric.IText('Type Here', {
                left: pointer.x,
                top: pointer.y,
@@ -276,11 +269,10 @@ function App() {
              });
              canvas.add(text);
              canvas.setActiveObject(text);
-             setActiveTool('select'); // Switch back immediately
+             setActiveTool('select');
           }
         });
 
-        // Mouse Move
         canvas.on('mouse:move', function(opt: any) {
           if (isDragging) {
             const e = opt.e;
@@ -299,10 +291,8 @@ function App() {
                 const w = Math.abs(pointer.x - shapeOriginX);
                 const h = Math.abs(pointer.y - shapeOriginY);
                 activeShape.set({ width: w, height: h });
-                
                 if (shapeOriginX > pointer.x) activeShape.set({ left: pointer.x });
                 if (shapeOriginY > pointer.y) activeShape.set({ top: pointer.y });
-
              } else if (activeShape.type === 'circle') {
                 const radius = Math.abs(pointer.x - shapeOriginX) / 2;
                 activeShape.set({ radius: radius });
@@ -313,16 +303,13 @@ function App() {
           }
         });
 
-        // Mouse Up
         canvas.on('mouse:up', function(opt: any) {
           canvas.setViewportTransform(canvas.viewportTransform);
           isDragging = false;
-          
           if (isDrawingShape) {
              isDrawingShape = false;
              if (activeShape) {
                 activeShape.setCoords();
-                // If created shape is tiny, remove it (accidental click)
                 if ((activeShape.width || 0) < 5 && (activeShape.radius || 0) < 5) {
                    canvas.remove(activeShape);
                 } else {
@@ -332,19 +319,16 @@ function App() {
              }
              activeShape = null;
              canvas.selection = true;
-             setActiveTool('select'); // Auto switch back to select
+             setActiveTool('select');
           }
         });
 
-        // Selection Events & Property Sync
         const updateSelectionState = () => {
           const activeObj = canvas.getActiveObject();
           setHasSelection(!!activeObj);
-          
           if (activeObj) {
             const type = activeObj.type;
             const isText = type === 'i-text' || type === 'text';
-            
             if (activeObj.type !== 'activeSelection') {
                setSelectedProperties(prev => ({
                  ...prev,
@@ -366,7 +350,6 @@ function App() {
         canvas.on('selection:updated', updateSelectionState);
         canvas.on('selection:cleared', updateSelectionState);
 
-        // Zoom
         canvas.on('mouse:wheel', function(opt: any) {
           const delta = opt.e.deltaY;
           let zoom = canvas.getZoom();
@@ -381,8 +364,6 @@ function App() {
       };
 
       initFabric();
-      
-      // Start global render loop for potential video elements
       startRenderLoop();
 
       const handleKeyDown = (e: KeyboardEvent) => {
@@ -413,17 +394,12 @@ function App() {
         }
       };
     }
-  }, []);
+  }, [initialCanvasState]); // Re-run if initial state prop changes
 
-  // Update Canvas Tool Mode and Properties when React state changes
   useEffect(() => {
      if (fabricRef.current) {
-        // Sync tool
         (fabricRef.current as any).customTool = activeTool;
-        // Sync properties for new shapes
         (fabricRef.current as any).customProps = selectedProperties;
-
-        // Set cursors
         if (activeTool === 'select') {
            fabricRef.current.defaultCursor = 'default';
            fabricRef.current.isDrawingMode = false;
@@ -442,31 +418,18 @@ function App() {
      }
   }, [activeTool, selectedProperties]);
 
-
-  // Handler to update properties from Toolbar
   const handlePropertyChange = (key: keyof SelectedProperties, value: any) => {
     setSelectedProperties(prev => ({ ...prev, [key]: value }));
-    
     if (fabricRef.current) {
        const canvas = fabricRef.current;
        const activeObj = canvas.getActiveObject();
-       
-       // Update active drawing brush if in draw mode
        if (key === 'stroke' && canvas.freeDrawingBrush) canvas.freeDrawingBrush.color = value;
        if (key === 'strokeWidth' && canvas.freeDrawingBrush) canvas.freeDrawingBrush.width = value;
-
        if (activeObj) {
-          if (key === 'stroke') {
-             // For shapes/lines
-             if (activeObj.type !== 'i-text') activeObj.set('stroke', value);
-          } else if (key === 'strokeWidth') {
-             if (activeObj.type !== 'i-text') activeObj.set('strokeWidth', value);
-          } else if (key === 'fill') {
-             // For text
-             if (activeObj.type === 'i-text' || activeObj.type === 'text') activeObj.set('fill', value);
-          } else if (key === 'fontSize') {
-             if (activeObj.type === 'i-text' || activeObj.type === 'text') activeObj.set('fontSize', value);
-          }
+          if (key === 'stroke') { if (activeObj.type !== 'i-text') activeObj.set('stroke', value); } 
+          else if (key === 'strokeWidth') { if (activeObj.type !== 'i-text') activeObj.set('strokeWidth', value); } 
+          else if (key === 'fill') { if (activeObj.type === 'i-text' || activeObj.type === 'text') activeObj.set('fill', value); } 
+          else if (key === 'fontSize') { if (activeObj.type === 'i-text' || activeObj.type === 'text') activeObj.set('fontSize', value); }
           canvas.requestRenderAll();
        }
     }
@@ -492,11 +455,9 @@ function App() {
      const canvas = fabricRef.current;
      const activeObj = canvas.getActiveObject();
      if (!activeObj) return;
-
      const dataURL = activeObj.toDataURL({ format: 'png', multiplier: 2 });
      const left = activeObj.left;
      const top = activeObj.top;
-
      canvas.remove(activeObj);
      window.fabric.Image.fromURL(dataURL, (img: any) => {
          img.set({ left: left, top: top, scaleX: 0.5, scaleY: 0.5 });
@@ -528,7 +489,6 @@ function App() {
     if (!fabricRef.current) return;
     const activeObj = fabricRef.current.getActiveObject();
     if (!activeObj) return;
-
     const dataURL = activeObj.toDataURL({ format: 'png', quality: 1, multiplier: 4 });
     const link = document.createElement('a');
     link.download = `nano-selection-${Date.now()}.png`;
@@ -538,59 +498,42 @@ function App() {
     document.body.removeChild(link);
   };
 
-  // --- Main Generation Logic ---
   const handleGenerate = async (prompt: string, model: ModelType) => {
     if (!fabricRef.current) return;
     setIsGenerating(true);
-
     try {
       const canvas = fabricRef.current;
       const activeObj = canvas.getActiveObject();
-      
       let imagesPayload: string[] = [];
       let finalPrompt = prompt;
-      
-      // Target position for result
       let targetX = 0;
       let targetY = 0;
       let visualWidth = 0;
       let refWidth = 0;
       let refHeight = 0;
 
-      // Extract Context (Image or Viewport)
       if (activeObj) {
-        // --- Selection Context ---
         const objs = activeObj.type === 'activeSelection' ? activeObj.getObjects() : [activeObj];
-        
-        // Check content types
         const hasImages = objs.some((o: any) => o.type === 'image');
         const hasShapes = objs.some((o: any) => ['rect', 'circle', 'path', 'line'].includes(o.type));
-        
         targetX = activeObj.left + activeObj.getScaledWidth() + 20;
         targetY = activeObj.top;
         visualWidth = activeObj.getScaledWidth();
         refWidth = visualWidth;
         refHeight = activeObj.getScaledHeight();
-
         const maxDim = Math.max(activeObj.getScaledWidth(), activeObj.getScaledHeight());
         const targetDim = 1536;
         const calculatedMultiplier = maxDim < targetDim ? (targetDim / maxDim) : 1;
 
         if (hasImages && !hasShapes && objs.length > 1) {
-           console.log("Multi-image mode detected");
-           imagesPayload = objs
-             .filter((o: any) => o.type === 'image')
-             .map((o: any) => {
+           imagesPayload = objs.filter((o: any) => o.type === 'image').map((o: any) => {
                 const iMax = Math.max(o.getScaledWidth(), o.getScaledHeight());
                 const iMult = iMax < 1024 ? (1024/iMax) : 1;
                 return o.toDataURL({ format: 'png', multiplier: iMult }).split(',')[1];
              });
-        } 
-        else if (hasImages && hasShapes) {
-           console.log("Annotation mode detected.");
+        } else if (hasImages && hasShapes) {
            const flatBase64 = activeObj.toDataURL({ format: 'png', multiplier: calculatedMultiplier }).split(',')[1];
            imagesPayload = [flatBase64];
-
            const instructions: string[] = [];
            objs.forEach((o: any) => {
              if (['rect', 'circle'].includes(o.type)) {
@@ -599,122 +542,64 @@ function App() {
                instructions.push(`remove the ${colorName} ${shapeName} annotation`);
              }
            });
-           
            if (instructions.length > 0) {
              finalPrompt += ` (IMPORTANT: ${instructions.join(', ')} from the final result, but use it as a reference for the edit).`;
            }
-        }
-        else {
-           // Standard Image or Just Shapes
-           console.log("Standard mode detected.");
+        } else {
            const flatBase64 = activeObj.toDataURL({ format: 'png', multiplier: calculatedMultiplier }).split(',')[1];
            imagesPayload = [flatBase64];
         }
-
       } else {
-        // --- Viewport Context (Only if NOT VEO IMAGE TO VIDEO) ---
-        // Veo requires specific image input for Img2Video, usually specific active object selection is better.
-        // But if no selection, we capture viewport.
-        
         visualWidth = 400; 
         refWidth = canvas.width;
         refHeight = canvas.height;
         const vpt = canvas.viewportTransform;
         targetX = (-vpt[4] + canvas.width / 2) / vpt[0] - (visualWidth / 2);
         targetY = (-vpt[5] + canvas.height / 2) / vpt[3] - (visualWidth / 2);
-
-        // Only capture viewport if model supports image input or user wants Img2Video without selection
-        // For Text2Video (Veo), imagesPayload might be empty if we want pure text generation.
-        // However, current logic assumes if prompt + no selection => generate from text.
-        // But for `generateContent` (Image Models), we usually send viewport as context if nothing selected.
         if (model !== ModelType.VEO_FAST && model !== ModelType.VEO_HQ) {
             const base64 = canvas.toDataURL({ format: 'png' }).split(',')[1];
             imagesPayload = [base64];
         }
       }
 
-      // --- BRANCH: VIDEO GENERATION ---
       if (model === ModelType.VEO_FAST || model === ModelType.VEO_HQ) {
-         const videoUrl = await generateVideoContent({
-            prompt: finalPrompt,
-            model,
-            images: imagesPayload
-         });
-
-         // Create Video Element
+         const videoUrl = await aiService.generateVideoContent({ prompt: finalPrompt, model, images: imagesPayload });
          const videoEl = document.createElement('video');
          videoEl.src = videoUrl;
          videoEl.crossOrigin = 'anonymous';
          videoEl.loop = true;
          videoEl.muted = true;
-         videoEl.width = 1280; // Default Veo resolution width (approx)
+         videoEl.width = 1280;
          videoEl.height = 720;
          videoEl.play();
-
-         // Create Fabric Image
-         const fabricVid = new window.fabric.Image(videoEl, {
-            left: targetX,
-            top: targetY,
-            objectCaching: false,
-         });
-         
-         if (visualWidth > 0) {
-            fabricVid.scaleToWidth(visualWidth);
-         } else {
-            fabricVid.scaleToWidth(400); // Default width
-         }
-
-         // Inject AI Data
-         fabricVid.set('aiData', {
-            prompt: finalPrompt,
-            model: model,
-            timestamp: Date.now()
-         } as AIData);
-
+         const fabricVid = new window.fabric.Image(videoEl, { left: targetX, top: targetY, objectCaching: false });
+         if (visualWidth > 0) fabricVid.scaleToWidth(visualWidth);
+         else fabricVid.scaleToWidth(400);
+         fabricVid.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
          canvas.add(fabricVid);
          canvas.setActiveObject(fabricVid);
          canvas.renderAll();
          setHasSelection(true);
-         
          return;
       }
 
-      // --- BRANCH: IMAGE GENERATION ---
-      const { imageBase64 } = await generateContent({
-        prompt: finalPrompt,
-        model,
-        images: imagesPayload,
-        referenceWidth: refWidth,
-        referenceHeight: refHeight
-      });
-
-      // Place Result
+      const { imageBase64 } = await aiService.generateContent({ prompt: finalPrompt, model, images: imagesPayload, referenceWidth: refWidth, referenceHeight: refHeight });
       if (imageBase64) {
         const imageUrl = `data:image/png;base64,${imageBase64}`;
         window.fabric.Image.fromURL(imageUrl, (img: any) => {
-          if (visualWidth > 0) {
-              img.scaleToWidth(visualWidth);
-          }
+          if (visualWidth > 0) img.scaleToWidth(visualWidth);
           img.set({ left: targetX, top: targetY });
-          
-          // INJECT AI METADATA
-          img.set('aiData', {
-            prompt: finalPrompt,
-            model: model,
-            timestamp: Date.now()
-          } as AIData);
-
+          img.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
           canvas.add(img);
           canvas.setActiveObject(img);
           canvas.renderAll();
           setHasSelection(true);
         });
       }
-
     } catch (error) {
       console.error("Generation failed:", error);
       alert("Failed to generate content. See console for details.");
-      throw error; // Re-throw so AIPanel sees the error state
+      throw error;
     } finally {
       setIsGenerating(false);
     }
@@ -742,13 +627,11 @@ function App() {
         onUpdateProperty={handlePropertyChange}
         hasSelection={hasSelection}
       />
-
       <AIPanel 
         onGenerate={handleGenerate} 
         isGenerating={isGenerating} 
         hasSelection={hasSelection}
       />
-
       <ContextMenu 
         x={contextMenu.x}
         y={contextMenu.y}
@@ -759,8 +642,6 @@ function App() {
         onFlatten={handleFlattenSelection}
         onDelete={handleDeleteSelection}
       />
-
-      {/* PROMPT POPUP */}
       <PromptPopup 
         visible={promptPopup.visible}
         x={promptPopup.x}
@@ -768,7 +649,6 @@ function App() {
         prompt={promptPopup.prompt}
         onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
       />
-
       <div ref={containerRef} className="absolute inset-0 z-0 bg-white">
          <canvas ref={canvasRef} />
          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900/10 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-500 pointer-events-none border border-slate-200 select-none">
