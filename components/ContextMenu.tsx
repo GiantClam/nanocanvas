@@ -1,3 +1,4 @@
+
 import React from 'react';
 import { Layers, Scissors, Trash2, Combine } from 'lucide-react';
 
@@ -22,7 +23,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, visible, onClose, onCom
       
       {/* Menu */}
       <div 
-        className="fixed z-[9999] bg-slate-900 border border-slate-700 rounded-lg shadow-2xl py-1 min-w-[200px] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100"
+        className="fixed z-[9999] bg-[#0B1220] border border-slate-700 rounded-lg shadow-2xl py-1 min-w-[200px] flex flex-col overflow-hidden animate-in fade-in zoom-in-95 duration-100"
         style={{ top: y, left: x }}
       >
         <div className="px-3 py-2 text-[10px] font-bold text-slate-500 uppercase tracking-wider border-b border-slate-800 mb-1">
@@ -47,7 +48,7 @@ const ContextMenu: React.FC<ContextMenuProps> = ({ x, y, visible, onClose, onCom
 
          <button 
           onClick={onFlatten}
-          className="flex items-center gap-3 px-3 py-2 hover:bg-slate-800 text-slate-300 text-sm transition-colors text-left"
+          className="flex items-center gap-3 px-3 py-2 hover:bg-[#151E2E] text-slate-300 text-sm transition-colors text-left"
         >
           <Layers size={16} />
           <span>Flatten to Image</span>

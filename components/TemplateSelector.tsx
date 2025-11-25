@@ -105,8 +105,8 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelect, hasSelect
               title={t.description} // Tooltip for description
               className={`group flex flex-row items-center gap-3 p-2 rounded-xl border transition-all text-left relative overflow-hidden h-12 ${
                 t.requiresImage && !hasSelection
-                  ? 'bg-slate-900/40 border-white/5 opacity-50 cursor-not-allowed'
-                  : 'bg-slate-800/60 border-white/5 hover:bg-slate-700/80 hover:border-white/20 hover:shadow-lg'
+                  ? 'bg-[#151E2E]/40 border-white/5 opacity-50 cursor-not-allowed'
+                  : 'bg-[#151E2E]/60 border-white/5 hover:bg-[#151E2E]/80 hover:border-white/20 hover:shadow-lg'
               }`}
             >
               <div className={`w-8 h-8 flex items-center justify-center rounded-lg shrink-0 transition-transform group-hover:scale-105 ${

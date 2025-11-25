@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { MousePointer2, Square, Circle, Type, Pen, Image as ImageIcon, Trash2, Download, ChevronLeft, ChevronRight, Palette, Minus } from 'lucide-react';
 import { SelectedProperties } from '../types';
@@ -44,7 +45,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     <div className={`absolute top-4 left-4 z-50 flex flex-col gap-2 transition-all duration-300 ease-in-out`}>
       
       {/* Main Toolbar */}
-      <div className={`flex flex-col bg-slate-950/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-16'}`}>
+      <div className={`flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-16'}`}>
         {/* Header / Collapse Toggle */}
         <div 
           className="h-8 flex items-center justify-center border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors"
@@ -74,7 +75,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
             >
               {tool.icon}
               {!isCollapsed && (
-                  <span className="absolute left-full ml-3 px-2 py-1 bg-slate-900 text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity border border-white/10 shadow-xl">
+                  <span className="absolute left-full ml-3 px-2 py-1 bg-[#151E2E] text-white text-xs rounded opacity-0 group-hover:opacity-100 pointer-events-none whitespace-nowrap z-50 transition-opacity border border-white/10 shadow-xl">
                   {tool.label}
                   </span>
               )}
@@ -120,7 +121,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
       {/* Style Editor Panel */}
       {showStyleEditor && !isCollapsed && (
-        <div className="w-64 bg-slate-950/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-200">
+        <div className="w-64 bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-200">
            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
              <Palette size={12} />
              Style Editor

@@ -616,46 +616,65 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
   };
 
   return (
-    <div className="flex h-screen w-screen overflow-hidden bg-slate-50 text-slate-800 relative">
-      <Toolbar 
-        activeTool={activeTool} 
-        onSelectTool={setActiveTool} 
-        onDelete={handleDeleteSelection}
-        onDownload={handleDownloadSelection}
-        onUploadImage={handleUploadImage}
-        selectedProperties={selectedProperties}
-        onUpdateProperty={handlePropertyChange}
-        hasSelection={hasSelection}
-      />
-      <AIPanel 
-        onGenerate={handleGenerate} 
-        isGenerating={isGenerating} 
-        hasSelection={hasSelection}
-      />
-      <ContextMenu 
-        x={contextMenu.x}
-        y={contextMenu.y}
-        visible={contextMenu.visible}
-        onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
-        onCompose={handleCompose}
-        onMatting={handleMatting}
-        onFlatten={handleFlattenSelection}
-        onDelete={handleDeleteSelection}
-      />
-      <PromptPopup 
-        visible={promptPopup.visible}
-        x={promptPopup.x}
-        y={promptPopup.y}
-        prompt={promptPopup.prompt}
-        onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
-      />
-      <div ref={containerRef} className="absolute inset-0 z-0 bg-white">
-         <canvas ref={canvasRef} />
-         <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-slate-900/10 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-500 pointer-events-none border border-slate-200 select-none">
-            Right-click objects for AI actions • Alt+Drag to Pan • Scroll to Zoom
-         </div>
+    <>
+      <style>
+        {`
+        #nc-root {
+          font-family: 'Inter', system-ui, -apple-system, sans-serif;
+          line-height: 1.5;
+          -webkit-text-size-adjust: 100%;
+          -moz-tab-size: 4;
+          tab-size: 4;
+        }
+        #nc-root *, #nc-root ::before, #nc-root ::after {
+          box-sizing: border-box;
+          border-width: 0;
+          border-style: solid;
+          border-color: #e5e7eb;
+        }
+        `}
+      </style>
+      <div id="nc-root" className="relative w-full h-full bg-slate-50 text-slate-800 isolate overflow-hidden">
+        <Toolbar 
+          activeTool={activeTool} 
+          onSelectTool={setActiveTool} 
+          onDelete={handleDeleteSelection}
+          onDownload={handleDownloadSelection}
+          onUploadImage={handleUploadImage}
+          selectedProperties={selectedProperties}
+          onUpdateProperty={handlePropertyChange}
+          hasSelection={hasSelection}
+        />
+        <AIPanel 
+          onGenerate={handleGenerate} 
+          isGenerating={isGenerating} 
+          hasSelection={hasSelection}
+        />
+        <ContextMenu 
+          x={contextMenu.x}
+          y={contextMenu.y}
+          visible={contextMenu.visible}
+          onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+          onCompose={handleCompose}
+          onMatting={handleMatting}
+          onFlatten={handleFlattenSelection}
+          onDelete={handleDeleteSelection}
+        />
+        <PromptPopup 
+          visible={promptPopup.visible}
+          x={promptPopup.x}
+          y={promptPopup.y}
+          prompt={promptPopup.prompt}
+          onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
+        />
+        <div ref={containerRef} className="absolute inset-0 z-0 bg-white">
+          <canvas ref={canvasRef} />
+          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-[#0B1220]/80 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-300 pointer-events-none border border-white/20 select-none shadow-lg">
+              Right-click objects for AI actions • Alt+Drag to Pan • Scroll to Zoom
+          </div>
+        </div>
       </div>
-    </div>
+    </>
   );
 }
 

@@ -1,3 +1,4 @@
+
 import React, { useState } from 'react';
 import { Copy, Check, X, Sparkles } from 'lucide-react';
 
@@ -22,7 +23,7 @@ const PromptPopup: React.FC<PromptPopupProps> = ({ visible, x, y, prompt, onClos
 
   return (
     <div 
-      className="fixed z-[9999] bg-slate-950/90 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl p-4 w-72 animate-in fade-in zoom-in-95 duration-200"
+      className="fixed z-[9999] bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-xl shadow-2xl p-4 w-72 animate-in fade-in zoom-in-95 duration-200"
       style={{ top: y + 20, left: x + 20 }}
     >
       <div className="flex items-center justify-between mb-2">

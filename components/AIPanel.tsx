@@ -82,7 +82,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
   };
 
   return (
-    <div className={`absolute top-4 right-4 z-50 transition-all duration-300 ease-in-out flex flex-col bg-slate-950/90 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden ${isCollapsed ? 'w-16 h-16 rounded-full' : 'w-[400px] h-[calc(100vh-2rem)]'}`}>
+    <div className={`absolute top-4 right-4 z-50 transition-all duration-300 ease-in-out flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden ${isCollapsed ? 'w-16 h-16 rounded-full' : 'w-[400px] h-[calc(100vh-2rem)]'}`}>
       
       {/* Collapsed State Toggle */}
       {isCollapsed && (
@@ -98,7 +98,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
       {!isCollapsed && (
         <>
           {/* Header */}
-          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-slate-900/50 select-none shrink-0">
+          <div className="flex items-center justify-between px-4 py-3 border-b border-white/10 bg-[#151E2E]/50 select-none shrink-0">
             <div className="flex items-center gap-2">
               <div className="p-1.5 bg-indigo-500 rounded-md shadow-lg shadow-indigo-500/20 backdrop-blur-sm">
                 <Sparkles size={16} className="text-white" />
@@ -200,7 +200,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
           </div>
 
           {/* Main Content Area (Scrollable) */}
-          <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative bg-slate-950/30">
+          <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative bg-[#0B1220]/30">
              {activeView === 'tasks' ? (
                 <div className="p-4 space-y-3 min-h-full">
                     {tasks.length === 0 && (
@@ -212,7 +212,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                     )}
                     
                     {tasks.map((task) => (
-                        <div key={task.id} className="bg-slate-900/60 border border-white/5 rounded-xl p-3 hover:border-white/10 transition-colors">
+                        <div key={task.id} className="bg-[#151E2E]/60 border border-white/5 rounded-xl p-3 hover:border-white/10 transition-colors">
                             <div className="flex items-start justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                     {task.status === 'loading' && <Loader2 size={14} className="text-indigo-400 animate-spin" />}
@@ -253,7 +253,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
           </div>
 
           {/* Input Footer (Always Visible) */}
-          <div className="p-4 border-t border-white/10 bg-slate-900/80 backdrop-blur-md shrink-0 z-10">
+          <div className="p-4 border-t border-white/10 bg-[#151E2E]/80 backdrop-blur-md shrink-0 z-10">
             <div className="relative group">
               <textarea
                 value={prompt}
