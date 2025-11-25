@@ -1,0 +1,5 @@
+{
+  "name": "NanoCanvas AI Editor",
+  "description": "An infinite canvas editor powered by Gemini Nano Banana models. Generate, edit, and refine images using text prompts and visual tools.",
+  "requestFramePermissions": []
+}
