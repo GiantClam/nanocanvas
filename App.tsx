@@ -4,17 +4,25 @@ import Toolbar from './components/Toolbar';
 import AIPanel from './components/AIPanel';
 import ContextMenu from './components/ContextMenu';
 import PromptPopup from './components/PromptPopup';
-import { ModelType, ContextMenuState, SelectedProperties, AIData, NanoCanvasProps } from './types';
-import { NanoAI } from './services/aiService';
+import Workspace from './components/Workspace';
+import { ModelType, ContextMenuState, SelectedProperties, AIData, NanoCanvasProps, Project, GalleryItem, Template } from './types';
+import { NanoAI, GenerateOptions } from './services/aiService';
 
 // Default Config if none provided (for standalone running)
 const DEFAULT_API_KEY = "AIzaSyDEskyGfoYxEqC1QRA4H1vodqjMOFrmCQY";
 
 const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingEvent }) => {
+  // Routing State
+  const [view, setView] = useState<'workspace' | 'editor'>('workspace');
+  const [currentProject, setCurrentProject] = useState<Project | null>(null);
+  const [gallery, setGallery] = useState<GalleryItem[]>([]);
+  const [initialTemplatePrompt, setInitialTemplatePrompt] = useState<string>('');
+
   const canvasRef = useRef<HTMLCanvasElement>(null);
   const fabricRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderLoopId = useRef<number | null>(null);
+  const aiPanelRef = useRef<any>(null); // To create refs for manual prompt setting if needed, or pass props
   
   // Initialize AI Service
   const aiService = useMemo(() => {
@@ -39,6 +47,21 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
     type: ''
   });
 
+  // Load Gallery from LocalStorage
+  useEffect(() => {
+    try {
+       const savedGallery = localStorage.getItem('nc_gallery');
+       if (savedGallery) setGallery(JSON.parse(savedGallery));
+    } catch(e) { console.error("Gallery load error", e); }
+  }, []);
+
+  // Save Gallery to LocalStorage
+  const addToGallery = (item: GalleryItem) => {
+    const updated = [item, ...gallery];
+    setGallery(updated);
+    localStorage.setItem('nc_gallery', JSON.stringify(updated.slice(0, 50))); // Limit to 50 items
+  };
+
   const getColorName = (hex: string): string => {
     const colors: {[key: string]: string} = {
       '#ffffff': 'white', '#000000': 'black', '#ef4444': 'red', '#f97316': 'orange',
@@ -59,7 +82,56 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
     renderLoopId.current = window.requestAnimationFrame(loop);
   };
 
+  // --- Workspace Logic ---
+
+  const handleOpenProject = (project: Project) => {
+    setCurrentProject(project);
+    setView('editor');
+  };
+
+  const handleCreateNew = (template?: Template) => {
+    setCurrentProject({
+      id: Date.now().toString(),
+      name: template ? `${template.name} Project` : 'Untitled Project',
+      data: {},
+      createdAt: Date.now(),
+      updatedAt: Date.now()
+    });
+    setInitialTemplatePrompt(template?.promptTemplate || '');
+    setView('editor');
+  };
+
+  const handleSaveProject = () => {
+     if (!fabricRef.current) return;
+     const json = fabricRef.current.toJSON(['aiData']); // Include aiData in save
+     const dataURL = fabricRef.current.toDataURL({ format: 'jpeg', quality: 0.5, multiplier: 0.2 }); // Small thumb
+     
+     const updatedProject: Project = {
+       id: currentProject?.id || Date.now().toString(),
+       name: currentProject?.name || 'Untitled Project',
+       thumbnail: dataURL,
+       data: json,
+       createdAt: currentProject?.createdAt || Date.now(),
+       updatedAt: Date.now()
+     };
+     
+     // Save to local storage
+     const existing = localStorage.getItem('nc_projects');
+     let projects: Project[] = existing ? JSON.parse(existing) : [];
+     const index = projects.findIndex(p => p.id === updatedProject.id);
+     if (index >= 0) projects[index] = updatedProject;
+     else projects.unshift(updatedProject);
+     
+     localStorage.setItem('nc_projects', JSON.stringify(projects));
+     setCurrentProject(updatedProject);
+     alert("Project Saved!");
+  };
+
+  // -----------------------
+
   useEffect(() => {
+    if (view !== 'editor') return;
+
     const handleOpenPromptPopup = (e: CustomEvent) => {
       setPromptPopup({
         visible: true,
@@ -153,14 +225,16 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         canvas.setBackgroundColor(gridPattern, canvas.renderAll.bind(canvas));
         fabricRef.current = canvas;
 
-        // --- Load Initial JSON State if provided ---
-        if (initialCanvasState) {
-          canvas.loadFromJSON(initialCanvasState, () => {
+        // --- Load JSON State ---
+        const stateToLoad = currentProject?.data && Object.keys(currentProject.data).length > 0 ? currentProject.data : initialCanvasState;
+        
+        if (stateToLoad) {
+          canvas.loadFromJSON(stateToLoad, () => {
              canvas.renderAll();
-             console.log("Initial state loaded.");
+             console.log("Canvas state loaded.");
           });
         }
-        // -------------------------------------------
+        // -----------------------
 
         let isDragging = false;
         let isDrawingShape = false;
@@ -394,7 +468,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         }
       };
     }
-  }, [initialCanvasState]); // Re-run if initial state prop changes
+  }, [view, currentProject]); // Re-initialize when view or project changes
 
   useEffect(() => {
      if (fabricRef.current) {
@@ -564,6 +638,17 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
 
       if (model === ModelType.VEO_FAST || model === ModelType.VEO_HQ) {
          const videoUrl = await aiService.generateVideoContent({ prompt: finalPrompt, model, images: imagesPayload });
+         
+         // Add to Gallery
+         addToGallery({
+            id: Date.now().toString(),
+            url: videoUrl,
+            prompt: finalPrompt,
+            model: model,
+            timestamp: Date.now(),
+            type: 'video'
+         });
+
          const videoEl = document.createElement('video');
          videoEl.src = videoUrl;
          videoEl.crossOrigin = 'anonymous';
@@ -586,6 +671,17 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
       const { imageBase64 } = await aiService.generateContent({ prompt: finalPrompt, model, images: imagesPayload, referenceWidth: refWidth, referenceHeight: refHeight });
       if (imageBase64) {
         const imageUrl = `data:image/png;base64,${imageBase64}`;
+        
+        // Add to Gallery
+        addToGallery({
+            id: Date.now().toString(),
+            url: imageUrl,
+            prompt: finalPrompt,
+            model: model,
+            timestamp: Date.now(),
+            type: 'image'
+        });
+
         window.fabric.Image.fromURL(imageUrl, (img: any) => {
           if (visualWidth > 0) img.scaleToWidth(visualWidth);
           img.set({ left: targetX, top: targetY });
@@ -635,44 +731,57 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         `}
       </style>
       <div id="nc-root" className="relative w-full h-full bg-slate-50 text-slate-800 isolate overflow-hidden">
-        <Toolbar 
-          activeTool={activeTool} 
-          onSelectTool={setActiveTool} 
-          onDelete={handleDeleteSelection}
-          onDownload={handleDownloadSelection}
-          onUploadImage={handleUploadImage}
-          selectedProperties={selectedProperties}
-          onUpdateProperty={handlePropertyChange}
-          hasSelection={hasSelection}
-        />
-        <AIPanel 
-          onGenerate={handleGenerate} 
-          isGenerating={isGenerating} 
-          hasSelection={hasSelection}
-        />
-        <ContextMenu 
-          x={contextMenu.x}
-          y={contextMenu.y}
-          visible={contextMenu.visible}
-          onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
-          onCompose={handleCompose}
-          onMatting={handleMatting}
-          onFlatten={handleFlattenSelection}
-          onDelete={handleDeleteSelection}
-        />
-        <PromptPopup 
-          visible={promptPopup.visible}
-          x={promptPopup.x}
-          y={promptPopup.y}
-          prompt={promptPopup.prompt}
-          onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
-        />
-        <div ref={containerRef} className="absolute inset-0 z-0 bg-white">
-          <canvas ref={canvasRef} />
-          <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-[#0B1220]/80 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-300 pointer-events-none border border-white/20 select-none shadow-lg">
-              Right-click objects for AI actions • Alt+Drag to Pan • Scroll to Zoom
-          </div>
-        </div>
+        
+        {view === 'workspace' ? (
+           <Workspace 
+              onOpenProject={handleOpenProject} 
+              onCreateNew={handleCreateNew} 
+              gallery={gallery}
+           />
+        ) : (
+           <>
+              <Toolbar 
+                activeTool={activeTool} 
+                onSelectTool={setActiveTool} 
+                onDelete={handleDeleteSelection}
+                onDownload={handleDownloadSelection}
+                onUploadImage={handleUploadImage}
+                onSaveProject={handleSaveProject}
+                onHome={() => setView('workspace')}
+                selectedProperties={selectedProperties}
+                onUpdateProperty={handlePropertyChange}
+                hasSelection={hasSelection}
+              />
+              <AIPanel 
+                onGenerate={handleGenerate} 
+                isGenerating={isGenerating} 
+                hasSelection={hasSelection}
+              />
+              <ContextMenu 
+                x={contextMenu.x}
+                y={contextMenu.y}
+                visible={contextMenu.visible}
+                onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+                onCompose={handleCompose}
+                onMatting={handleMatting}
+                onFlatten={handleFlattenSelection}
+                onDelete={handleDeleteSelection}
+              />
+              <PromptPopup 
+                visible={promptPopup.visible}
+                x={promptPopup.x}
+                y={promptPopup.y}
+                prompt={promptPopup.prompt}
+                onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
+              />
+              <div ref={containerRef} className="absolute inset-0 z-0 bg-white">
+                <canvas ref={canvasRef} />
+                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-[#0B1220]/80 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-300 pointer-events-none border border-white/20 select-none shadow-lg">
+                    {currentProject?.name} • Right-click objects for AI actions • Alt+Drag to Pan
+                </div>
+              </div>
+           </>
+        )}
       </div>
     </>
   );

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { MousePointer2, Square, Circle, Type, Pen, Image as ImageIcon, Trash2, Download, ChevronLeft, ChevronRight, Palette, Minus } from 'lucide-react';
+import { MousePointer2, Square, Circle, Type, Pen, Image as ImageIcon, Trash2, Download, ChevronLeft, ChevronRight, Palette, Save, Home } from 'lucide-react';
 import { SelectedProperties } from '../types';
 
 interface ToolbarProps {
@@ -9,6 +9,8 @@ interface ToolbarProps {
   onDelete: () => void;
   onDownload: () => void;
   onUploadImage: (e: React.ChangeEvent<HTMLInputElement>) => void;
+  onSaveProject: () => void;
+  onHome: () => void;
   selectedProperties: SelectedProperties;
   onUpdateProperty: (key: keyof SelectedProperties, value: any) => void;
   hasSelection: boolean;
@@ -20,6 +22,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onDelete, 
   onDownload, 
   onUploadImage,
+  onSaveProject,
+  onHome,
   selectedProperties,
   onUpdateProperty,
   hasSelection
@@ -90,6 +94,24 @@ const Toolbar: React.FC<ToolbarProps> = ({
           </label>
 
           <div className="flex-grow min-h-[1rem]" />
+
+          <button
+            onClick={onSaveProject}
+            className={`flex items-center justify-center rounded-xl transition-all duration-200 ${isCollapsed ? 'w-8 h-8' : 'w-12 h-12'} text-slate-300 hover:bg-indigo-500/20 hover:text-indigo-400`}
+            title="Save Project"
+          >
+            <Save size={20} />
+          </button>
+
+          <button
+            onClick={onHome}
+            className={`flex items-center justify-center rounded-xl transition-all duration-200 mb-1 ${isCollapsed ? 'w-8 h-8' : 'w-12 h-12'} text-slate-300 hover:bg-white/10 hover:text-white`}
+            title="Back to Workspace"
+          >
+            <Home size={20} />
+          </button>
+
+          <div className="h-px w-8 bg-white/20 my-1" />
 
           <button
             onClick={onDownload}

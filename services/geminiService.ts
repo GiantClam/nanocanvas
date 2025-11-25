@@ -1,3 +1,4 @@
+
 import { GoogleGenAI } from "@google/genai";
 import { ModelType } from "../types";
 
@@ -153,7 +154,7 @@ export const generateVideoContent = async (options: GenerateOptions): Promise<st
   const execute = async (retry: boolean = true): Promise<string> => {
     // 1. Mandatory API Key Check
     // Check for both VEO_HQ and VEO_FAST (Veo 2) to prevent 404s.
-    if (model === ModelType.VEO_HQ) {
+    if (model === ModelType.VEO_HQ || model === ModelType.VEO_FAST) {
         if (window.aistudio) {
             const hasKey = await window.aistudio.hasSelectedApiKey();
             if (!hasKey) {

@@ -144,8 +144,8 @@ export class NanoAI {
     const { prompt, model, images } = options;
 
     const execute = async (retry: boolean = true): Promise<string> => {
-      // Mandatory API Key Check for Veo HQ
-      if (model === ModelType.VEO_HQ && this.config.provider === 'google') {
+      // Mandatory API Key Check for Veo HQ and Fast
+      if ((model === ModelType.VEO_HQ || model === ModelType.VEO_FAST) && this.config.provider === 'google') {
           if (window.aistudio) {
               const hasKey = await window.aistudio.hasSelectedApiKey();
               if (!hasKey) await window.aistudio.openSelectKey();

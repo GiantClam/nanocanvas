@@ -80,6 +80,26 @@ export interface NanoCanvasProps {
   onBillingEvent?: BillingCallback;
 }
 
+// --- Workspace Types ---
+
+export interface Project {
+  id: string;
+  name: string;
+  thumbnail?: string; // Data URL of the canvas preview
+  data: object; // Fabric JSON
+  createdAt: number;
+  updatedAt: number;
+}
+
+export interface GalleryItem {
+  id: string;
+  url: string; // Base64 or Blob URL
+  prompt: string;
+  model: string;
+  timestamp: number;
+  type: 'image' | 'video';
+}
+
 declare global {
   interface AIStudio {
     hasSelectedApiKey: () => Promise<boolean>;
