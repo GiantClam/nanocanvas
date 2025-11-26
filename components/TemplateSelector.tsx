@@ -1,6 +1,7 @@
 
-import React, { useState, useMemo } from 'react';
-import { TEMPLATES } from '../constants';
+import React, { useState, useMemo, useEffect } from 'react';
+// Remote-only: templates are loaded from backend
+import { fetchNanoCanvasTemplates } from '../services/templateAdapter';
 import { Template } from '../types';
 import { Layout, Zap, PenTool, Layers, Palette, Sparkles, Blend, BoxSelect, Scissors, Search, Eraser, ImageIcon, Type, Film, Video, Camera } from 'lucide-react';
 
@@ -34,8 +35,24 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelect, hasSelect
   };
 
   // --- Filtering Logic ---
+  const [remoteTemplates, setRemoteTemplates] = useState<Template[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => {
+    (async () => {
+      setLoading(true);
+      const rows = await fetchNanoCanvasTemplates();
+      setRemoteTemplates(rows);
+      setLoading(false);
+    })();
+  }, []);
+
+  const allTemplates = useMemo(() => {
+    return remoteTemplates;
+  }, [remoteTemplates]);
+
   const filteredTemplates = useMemo(() => {
-    return TEMPLATES.filter(t => {
+    return allTemplates.filter(t => {
       // 1. Filter by Search
       const matchesSearch = 
         t.name.toLowerCase().includes(searchQuery.toLowerCase()) || 
@@ -47,13 +64,13 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelect, hasSelect
 
       return matchesSearch && matchesCategory;
     });
-  }, [searchQuery, selectedCategory]);
+  }, [searchQuery, selectedCategory, allTemplates]);
 
   // --- Extract Unique Categories from ALL templates ---
   const categories = useMemo(() => {
-    const cats = Array.from(new Set(TEMPLATES.map(t => t.category))).sort();
+    const cats = Array.from(new Set(allTemplates.map(t => t.category))).sort();
     return ['All', ...cats];
-  }, []);
+  }, [allTemplates]);
 
   // --- Render ---
   return (
@@ -94,7 +111,7 @@ const TemplateSelector: React.FC<TemplateSelectorProps> = ({ onSelect, hasSelect
         {filteredTemplates.length === 0 ? (
           <div className="col-span-2 text-center py-12 text-slate-400 text-xs flex flex-col items-center">
             <Search size={24} className="mb-2 opacity-30" />
-            No templates found.
+            {loading ? 'Loading templates...' : 'No templates found.'}
           </div>
         ) : (
           filteredTemplates.map(t => (

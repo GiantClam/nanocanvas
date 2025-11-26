@@ -157,7 +157,10 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         borderDashArray: [4, 4]
       });
 
-      fabric.Object.prototype.controls.aiInfo = new fabric.Control({
+      if (!(fabric.Object.prototype as any).controls) {
+        (fabric.Object.prototype as any).controls = {} as any;
+      }
+      (fabric.Object.prototype as any).controls.aiInfo = new fabric.Control({
         x: 0.5,
         y: -0.5,
         offsetX: 15,
@@ -221,8 +224,8 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
           source: patternCanvas,
           repeat: 'repeat'
         });
-        
-        canvas.setBackgroundColor(gridPattern, canvas.renderAll.bind(canvas));
+        (canvas as any).backgroundColor = gridPattern;
+        canvas.requestRenderAll();
         fabricRef.current = canvas;
 
         // --- Load JSON State ---
@@ -731,56 +734,55 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         `}
       </style>
       <div id="nc-root" className="relative w-full h-full bg-slate-50 text-slate-800 isolate overflow-hidden">
-        
         {view === 'workspace' ? (
-           <Workspace 
-              onOpenProject={handleOpenProject} 
-              onCreateNew={handleCreateNew} 
-              gallery={gallery}
-           />
+          <Workspace 
+            onOpenProject={handleOpenProject} 
+            onCreateNew={handleCreateNew} 
+            gallery={gallery}
+          />
         ) : (
-           <>
-              <Toolbar 
-                activeTool={activeTool} 
-                onSelectTool={setActiveTool} 
-                onDelete={handleDeleteSelection}
-                onDownload={handleDownloadSelection}
-                onUploadImage={handleUploadImage}
-                onSaveProject={handleSaveProject}
-                onHome={() => setView('workspace')}
-                selectedProperties={selectedProperties}
-                onUpdateProperty={handlePropertyChange}
-                hasSelection={hasSelection}
-              />
-              <AIPanel 
-                onGenerate={handleGenerate} 
-                isGenerating={isGenerating} 
-                hasSelection={hasSelection}
-              />
-              <ContextMenu 
-                x={contextMenu.x}
-                y={contextMenu.y}
-                visible={contextMenu.visible}
-                onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
-                onCompose={handleCompose}
-                onMatting={handleMatting}
-                onFlatten={handleFlattenSelection}
-                onDelete={handleDeleteSelection}
-              />
-              <PromptPopup 
-                visible={promptPopup.visible}
-                x={promptPopup.x}
-                y={promptPopup.y}
-                prompt={promptPopup.prompt}
-                onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
-              />
-              <div ref={containerRef} className="absolute inset-0 z-0 bg-white">
-                <canvas ref={canvasRef} />
-                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-[#0B1220]/80 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-300 pointer-events-none border border-white/20 select-none shadow-lg">
-                    {currentProject?.name} • Right-click objects for AI actions • Alt+Drag to Pan
-                </div>
+          <>
+            <Toolbar 
+              activeTool={activeTool} 
+              onSelectTool={setActiveTool} 
+              onDelete={handleDeleteSelection}
+              onDownload={handleDownloadSelection}
+              onUploadImage={handleUploadImage}
+              onSaveProject={handleSaveProject}
+              onHome={() => setView('workspace')}
+              selectedProperties={selectedProperties}
+              onUpdateProperty={handlePropertyChange}
+              hasSelection={hasSelection}
+            />
+            <AIPanel 
+              onGenerate={handleGenerate} 
+              isGenerating={isGenerating} 
+              hasSelection={hasSelection}
+            />
+            <ContextMenu 
+              x={contextMenu.x}
+              y={contextMenu.y}
+              visible={contextMenu.visible}
+              onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+              onCompose={handleCompose}
+              onMatting={handleMatting}
+              onFlatten={handleFlattenSelection}
+              onDelete={handleDeleteSelection}
+            />
+            <PromptPopup 
+              visible={promptPopup.visible}
+              x={promptPopup.x}
+              y={promptPopup.y}
+              prompt={promptPopup.prompt}
+              onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
+            />
+            <div ref={containerRef} className="absolute inset-0 z-0 bg-white">
+              <canvas ref={canvasRef} />
+              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-[#0B1220]/80 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-300 pointer-events-none border border-white/20 select-none shadow-lg">
+                {currentProject?.name} • Right-click objects for AI actions • Alt+Drag to Pan
               </div>
-           </>
+            </div>
+          </>
         )}
       </div>
     </>

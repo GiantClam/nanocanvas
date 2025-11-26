@@ -52,7 +52,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       <div className={`flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-16'}`}>
         {/* Header / Collapse Toggle */}
         <div 
-          className="h-8 flex items-center justify-center border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors"
+          className="h-8 flex items-center justify-center border-b border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? "Expand" : "Collapse"}
         >
@@ -151,46 +151,46 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
            {/* Color Picker */}
            <div className="mb-4">
-             <label className="text-xs text-slate-300 mb-2 block">{isTextSelected ? 'Text Color' : 'Stroke Color'}</label>
-             <div className="flex flex-wrap gap-1.5">
-               {colors.map(color => (
-                 <button
-                    key={color}
-                    onClick={() => onUpdateProperty(isTextSelected ? 'fill' : 'stroke', color)}
-                    className={`w-5 h-5 rounded-full border border-slate-600/50 transition-transform hover:scale-110 ${
+            <label className="text-xs text-slate-300 mb-2 block">{isTextSelected ? 'Text Color' : 'Stroke Color'}</label>
+            <div className="flex flex-wrap gap-1.5">
+              {colors.map(color => (
+                <button
+                   key={color}
+                   onClick={() => onUpdateProperty(isTextSelected ? 'fill' : 'stroke', color)}
+                   className={`w-5 h-5 rounded-full border border-slate-600/50 transition-transform hover:scale-110 ${
                       (isTextSelected ? selectedProperties.fill : selectedProperties.stroke) === color ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900' : ''
-                    }`}
-                    style={{ backgroundColor: color }}
+                   }`}
+                   style={{ backgroundColor: color }}
+                />
+              ))}
+              <label className="w-5 h-5 rounded-full border border-slate-600/50 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 cursor-pointer hover:scale-110 relative overflow-hidden">
+                <input 
+                   type="color" 
+                   className="absolute inset-0 opacity-0 cursor-pointer"
+                   value={isTextSelected ? selectedProperties.fill : selectedProperties.stroke}
+                   onChange={(e) => onUpdateProperty(isTextSelected ? 'fill' : 'stroke', e.target.value)}
                  />
-               ))}
-               <label className="w-5 h-5 rounded-full border border-slate-600/50 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 cursor-pointer hover:scale-110 relative overflow-hidden">
-                 <input 
-                    type="color" 
-                    className="absolute inset-0 opacity-0 cursor-pointer"
-                    value={isTextSelected ? selectedProperties.fill : selectedProperties.stroke}
-                    onChange={(e) => onUpdateProperty(isTextSelected ? 'fill' : 'stroke', e.target.value)}
-                  />
-               </label>
-             </div>
-           </div>
+              </label>
+            </div>
+          </div>
 
            {/* Stroke Width Slider (Shapes/Draw) */}
            {isShapeOrDraw && (
              <div className="mb-2">
-               <div className="flex justify-between text-xs text-slate-300 mb-1">
-                 <span>Stroke Width</span>
-                 <span>{selectedProperties.strokeWidth}px</span>
-               </div>
-               <input 
-                  type="range" 
-                  min="1" 
-                  max="20" 
-                  value={selectedProperties.strokeWidth}
-                  onChange={(e) => onUpdateProperty('strokeWidth', parseInt(e.target.value))}
-                  className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-               />
-             </div>
-           )}
+              <div className="flex justify-between text-xs text-slate-300 mb-1">
+                <span>Stroke Width</span>
+                <span>{selectedProperties.strokeWidth}px</span>
+              </div>
+              <input 
+                 type="range" 
+                 min="1" 
+                 max="20" 
+                 value={selectedProperties.strokeWidth}
+                 onChange={(e) => onUpdateProperty('strokeWidth', parseInt(e.target.value))}
+                 className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+              />
+            </div>
+          )}
 
            {/* Font Size (Text) */}
            {isTextSelected && (
