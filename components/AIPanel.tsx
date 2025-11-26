@@ -200,11 +200,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
           </div>
 
           {/* Main Content Area (Scrollable) */}
-<<<<<<< HEAD
           <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative bg-[#0B1220]/30">
-=======
-          <div className="flex-1 overflow-y-auto min-h-0 custom-scrollbar relative bg-[#0B1220]/60">
->>>>>>> 00752bf ([feature]use supabase)
              {activeView === 'tasks' ? (
                 <div className="p-4 space-y-3 min-h-full">
                     {tasks.length === 0 && (
@@ -215,13 +211,8 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                         </div>
                     )}
                     
-<<<<<<< HEAD
                     {tasks.map((task) => (
                         <div key={task.id} className="bg-[#151E2E]/60 border border-white/5 rounded-xl p-3 hover:border-white/10 transition-colors">
-=======
-                        {tasks.map((task) => (
-                        <div key={task.id} className="bg-slate-900/60 border border-white/5 rounded-xl p-3 hover:border-white/10 transition-colors">
->>>>>>> 00752bf ([feature]use supabase)
                             <div className="flex items-start justify-between mb-2">
                                 <div className="flex items-center gap-2">
                                     {task.status === 'loading' && <Loader2 size={14} className="text-indigo-400 animate-spin" />}
