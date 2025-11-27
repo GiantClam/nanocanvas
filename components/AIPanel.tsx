@@ -119,14 +119,14 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
           {/* Controls Section (Always Visible) */}
           <div className="px-4 pt-4 pb-2 space-y-3 shrink-0">
              {/* Unified Model Selector */}
-             <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">MODEL</div>
-             <div className="grid grid-cols-4 gap-1 p-1 bg-[#0F172A]/60 border border-white/10 rounded-lg">
+             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Model</div>
+             <div className="grid grid-cols-4 gap-1 p-1 bg-black/40 border border-white/10 rounded-lg">
                 <button
                     onClick={() => setSelectedModel(ModelType.NANO_BANANA_1)}
                     className={`py-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-md transition-all truncate ${
                         selectedModel === ModelType.NANO_BANANA_1
                         ? 'bg-indigo-600 text-white shadow-sm'
-                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                        : 'text-slate-300 hover:text-white hover:bg-white/5'
                     }`}
                     title="Gemini Nano 1 (Fast)"
                 >
@@ -137,7 +137,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                     className={`py-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-md transition-all truncate ${
                         selectedModel === ModelType.NANO_BANANA_2
                         ? 'bg-purple-600 text-white shadow-sm'
-                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                        : 'text-slate-300 hover:text-white hover:bg-white/5'
                     }`}
                     title="Gemini Nano 2 (Pro)"
                 >
@@ -148,7 +148,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                     className={`py-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-md transition-all truncate ${
                         selectedModel === ModelType.VEO_FAST
                         ? 'bg-rose-600 text-white shadow-sm'
-                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                        : 'text-slate-300 hover:text-white hover:bg-white/5'
                     }`}
                     title="Veo 2"
                 >
@@ -159,7 +159,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                     className={`py-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-md transition-all truncate ${
                         selectedModel === ModelType.VEO_HQ
                         ? 'bg-rose-800 text-white shadow-sm'
-                        : 'text-slate-300 hover:text-white hover:bg-white/10'
+                        : 'text-slate-300 hover:text-white hover:bg-white/5'
                     }`}
                     title="Veo HQ"
                 >
@@ -168,33 +168,33 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
              </div>
 
              {/* Context Indicator */}
-             <div className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium backdrop-blur-sm ${hasSelection ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-300' : 'bg-white/5 border-white/10 text-slate-300'}`}>
-               <label className="flex items-center gap-2 cursor-pointer">
-                 <input type="checkbox" checked={!hasSelection} readOnly className="accent-indigo-500" />
-                 <span>Connect: Full Viewport</span>
-               </label>
-               {!hasSelection ? (
-                 <span className="text-[10px] opacity-70">Viewport</span>
-               ) : (
-                 <span className="flex items-center gap-1 text-[10px] opacity-70"><MousePointer2 size={12} /> Selection</span>
-               )}
+             <div className={`flex items-center justify-between px-3 py-2 rounded-lg border text-xs font-medium backdrop-blur-sm ${
+                hasSelection 
+                ? 'bg-emerald-900/30 border-emerald-500/30 text-emerald-300' 
+                : 'bg-white/5 border-white/10 text-slate-300'
+             }`}>
+                <div className="flex items-center gap-2">
+                {hasSelection ? <MousePointer2 size={14} /> : <Monitor size={14} />}
+                <span>{hasSelection ? 'Context: Active Selection' : 'Context: Full Viewport'}</span>
+                </div>
+                {hasSelection && <span className="text-[10px] opacity-70">Focus Mode</span>}
              </div>
 
              {/* View Tabs */}
              <div className="flex border-b border-white/10 mt-2">
-               <button 
-                  onClick={() => setActiveView('tasks')} 
-                  className={`flex-1 pb-2 text-xs font-semibold border-b-2 transition-all flex items-center justify-center gap-2 ${activeView === 'tasks' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+                <button 
+                   onClick={() => setActiveView('tasks')} 
+                   className={`flex-1 pb-2 text-xs font-medium border-b-2 transition-all flex items-center justify-center gap-2 ${activeView === 'tasks' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
                 >
-                  <ListTodo size={12} />
-                  Tasks
+                   <ListTodo size={12} />
+                   Tasks
                 </button>
                 <button 
-                  onClick={() => setActiveView('library')} 
-                  className={`flex-1 pb-2 text-xs font-semibold border-b-2 transition-all flex items-center justify-center gap-2 ${activeView === 'library' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
+                   onClick={() => setActiveView('library')} 
+                   className={`flex-1 pb-2 text-xs font-medium border-b-2 transition-all flex items-center justify-center gap-2 ${activeView === 'library' ? 'border-indigo-500 text-white' : 'border-transparent text-slate-400 hover:text-slate-200'}`}
                 >
-                  <Library size={12} />
-                  Templates
+                   <Library size={12} />
+                   Templates
                 </button>
              </div>
           </div>

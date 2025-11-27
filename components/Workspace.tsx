@@ -1,3 +1,4 @@
+
 import React, { useState, useEffect } from 'react';
 import { Project, GalleryItem, Template } from '../types';
 import { TEMPLATES } from '../constants';

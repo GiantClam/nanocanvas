@@ -22,7 +22,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
   const fabricRef = useRef<any>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const renderLoopId = useRef<number | null>(null);
-  const aiPanelRef = useRef<any>(null); // To create refs for manual prompt setting if needed, or pass props
+  const initRequestRef = useRef<number | null>(null);
   
   // Initialize AI Service
   const aiService = useMemo(() => {
@@ -142,10 +142,34 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
     };
     window.addEventListener('openPromptPopup', handleOpenPromptPopup as EventListener);
 
-    if (canvasRef.current && containerRef.current && !fabricRef.current) {
-      const fabric = window.fabric;
-      if (!fabric) return;
+    // Main initialization function
+    const attemptInit = () => {
+       // Check if requirements are met
+       if (!canvasRef.current || !containerRef.current) return;
+       
+       // Check if Fabric is loaded
+       const fabric = window.fabric;
+       if (!fabric) {
+         initRequestRef.current = requestAnimationFrame(attemptInit);
+         return;
+       }
 
+       // Check if container has valid dimensions
+       const width = containerRef.current.clientWidth;
+       const height = containerRef.current.clientHeight;
+       if (width === 0 || height === 0) {
+         initRequestRef.current = requestAnimationFrame(attemptInit);
+         return;
+       }
+
+       // Stop polling and initialize
+       if (fabricRef.current) return;
+
+       initFabric(fabric, width, height);
+    };
+
+    const initFabric = (fabric: any, width: number, height: number) => {
+      // Setup Custom Controls
       fabric.Object.prototype.set({
         transparentCorners: false,
         cornerColor: '#ffffff',
@@ -157,10 +181,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         borderDashArray: [4, 4]
       });
 
-      if (!(fabric.Object.prototype as any).controls) {
-        (fabric.Object.prototype as any).controls = {} as any;
-      }
-      (fabric.Object.prototype as any).controls.aiInfo = new fabric.Control({
+      fabric.Object.prototype.controls.aiInfo = new fabric.Control({
         x: 0.5,
         y: -0.5,
         offsetX: 15,
@@ -198,279 +219,294 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         }
       });
 
-      const initFabric = () => {
-         const canvas = new fabric.Canvas(canvasRef.current, {
-          width: containerRef.current?.clientWidth || window.innerWidth,
-          height: containerRef.current?.clientHeight || window.innerHeight,
-          backgroundColor: '#ffffff',
-          selection: true,
-          preserveObjectStacking: true,
-          fireRightClick: true,
-          stopContextMenu: true
-        });
+      // Initialize Canvas
+      const canvas = new fabric.Canvas(canvasRef.current, {
+        width: width,
+        height: height,
+        backgroundColor: '#ffffff',
+        selection: true,
+        preserveObjectStacking: true,
+        fireRightClick: true,
+        stopContextMenu: true
+      });
 
-        const patternCanvas = document.createElement('canvas');
-        patternCanvas.width = 20;
-        patternCanvas.height = 20;
-        const ctx = patternCanvas.getContext('2d');
-        if (ctx) {
-          ctx.fillStyle = '#cbd5e1';
-          ctx.beginPath();
-          ctx.arc(10, 10, 1, 0, Math.PI * 2);
-          ctx.fill();
-        }
-        
-        const gridPattern = new fabric.Pattern({
-          source: patternCanvas,
-          repeat: 'repeat'
-        });
-        (canvas as any).backgroundColor = gridPattern;
-        canvas.requestRenderAll();
-        fabricRef.current = canvas;
-
-        // --- Load JSON State ---
-        const stateToLoad = currentProject?.data && Object.keys(currentProject.data).length > 0 ? currentProject.data : initialCanvasState;
-        
-        if (stateToLoad) {
-          canvas.loadFromJSON(stateToLoad, () => {
-             canvas.renderAll();
-             console.log("Canvas state loaded.");
-          });
-        }
-        // -----------------------
-
-        let isDragging = false;
-        let isDrawingShape = false;
-        let shapeOriginX = 0;
-        let shapeOriginY = 0;
-        let activeShape: any = null;
-        let lastPosX = 0;
-        let lastPosY = 0;
-
-        canvas.on('object:moving', (e: any) => {
-          const target = e.target;
-          if (!target) return;
-          const snapDist = 15; 
-          const gridSize = 50; 
-          let newLeft = target.left;
-          let newTop = target.top;
-          
-          if (Math.abs(newLeft % gridSize) < snapDist) newLeft = Math.round(newLeft / gridSize) * gridSize;
-          if (Math.abs(newTop % gridSize) < snapDist) newTop = Math.round(newTop / gridSize) * gridSize;
-          
-          canvas.forEachObject((obj: any) => {
-             if (obj === target || !obj.visible) return; 
-             const tWidth = target.width * target.scaleX;
-             const tHeight = target.height * target.scaleY;
-             const oWidth = obj.width * obj.scaleX;
-             const oHeight = obj.height * obj.scaleY;
-
-             if (Math.abs(newLeft - obj.left) < snapDist) newLeft = obj.left;
-             if (Math.abs(newTop - obj.top) < snapDist) newTop = obj.top;
-             if (Math.abs((newLeft + tWidth) - (obj.left + oWidth)) < snapDist) newLeft = obj.left + oWidth - tWidth;
-             if (Math.abs((newTop + tHeight) - (obj.top + oHeight)) < snapDist) newTop = obj.top + oHeight - tHeight;
-          });
-          target.set({ left: newLeft, top: newTop });
-        });
-
-        canvas.on('mouse:down', function(opt: any) {
-          const evt = opt.e;
-          if (opt.button === 3 || opt.e.button === 2) {
-             const activeObj = canvas.getActiveObject();
-             if (opt.target && opt.target !== activeObj) {
-                canvas.setActiveObject(opt.target);
-             }
-             setContextMenu({
-               visible: true,
-               x: evt.clientX,
-               y: evt.clientY,
-               hasSelection: !!canvas.getActiveObject()
-             });
-             return;
-          }
-          setContextMenu(prev => ({ ...prev, visible: false }));
-          setPromptPopup(prev => ({ ...prev, visible: false }));
-
-          if (evt.altKey === true) {
-            isDragging = true;
-            canvas.selection = false;
-            lastPosX = evt.clientX;
-            lastPosY = evt.clientY;
-            return;
-          }
-
-          const pointer = canvas.getPointer(evt);
-          const tool = (canvas as any).customTool; 
-          const props = (canvas as any).customProps || {};
-
-          if (tool === 'rect' || tool === 'circle') {
-             isDrawingShape = true;
-             shapeOriginX = pointer.x;
-             shapeOriginY = pointer.y;
-
-             if (tool === 'rect') {
-                activeShape = new fabric.Rect({
-                   left: shapeOriginX,
-                   top: shapeOriginY,
-                   originX: 'left',
-                   originY: 'top',
-                   width: 0,
-                   height: 0,
-                   stroke: props.stroke || '#000000',
-                   strokeWidth: props.strokeWidth || 3,
-                   fill: 'transparent',
-                   transparentCorners: false
-                });
-             } else if (tool === 'circle') {
-                activeShape = new fabric.Circle({
-                   left: shapeOriginX,
-                   top: shapeOriginY,
-                   originX: 'left',
-                   originY: 'top',
-                   radius: 0,
-                   stroke: props.stroke || '#000000',
-                   strokeWidth: props.strokeWidth || 3,
-                   fill: 'transparent',
-                   transparentCorners: false
-                });
-             }
-             canvas.add(activeShape);
-             canvas.selection = false; 
-          } else if (tool === 'text') {
-             const text = new fabric.IText('Type Here', {
-               left: pointer.x,
-               top: pointer.y,
-               fontFamily: 'Inter',
-               fill: props.fill || '#000000',
-               fontSize: props.fontSize || 32,
-             });
-             canvas.add(text);
-             canvas.setActiveObject(text);
-             setActiveTool('select');
-          }
-        });
-
-        canvas.on('mouse:move', function(opt: any) {
-          if (isDragging) {
-            const e = opt.e;
-            const vpt = canvas.viewportTransform;
-            vpt[4] += e.clientX - lastPosX;
-            vpt[5] += e.clientY - lastPosY;
-            canvas.requestRenderAll();
-            lastPosX = e.clientX;
-            lastPosY = e.clientY;
-            return;
-          }
-
-          if (isDrawingShape && activeShape) {
-             const pointer = canvas.getPointer(opt.e);
-             if (activeShape.type === 'rect') {
-                const w = Math.abs(pointer.x - shapeOriginX);
-                const h = Math.abs(pointer.y - shapeOriginY);
-                activeShape.set({ width: w, height: h });
-                if (shapeOriginX > pointer.x) activeShape.set({ left: pointer.x });
-                if (shapeOriginY > pointer.y) activeShape.set({ top: pointer.y });
-             } else if (activeShape.type === 'circle') {
-                const radius = Math.abs(pointer.x - shapeOriginX) / 2;
-                activeShape.set({ radius: radius });
-                if (shapeOriginX > pointer.x) activeShape.set({ left: pointer.x });
-                if (shapeOriginY > pointer.y) activeShape.set({ top: pointer.y });
-             }
-             canvas.renderAll();
-          }
-        });
-
-        canvas.on('mouse:up', function(opt: any) {
-          canvas.setViewportTransform(canvas.viewportTransform);
-          isDragging = false;
-          if (isDrawingShape) {
-             isDrawingShape = false;
-             if (activeShape) {
-                activeShape.setCoords();
-                if ((activeShape.width || 0) < 5 && (activeShape.radius || 0) < 5) {
-                   canvas.remove(activeShape);
-                } else {
-                   canvas.setActiveObject(activeShape);
-                   setHasSelection(true);
-                }
-             }
-             activeShape = null;
-             canvas.selection = true;
-             setActiveTool('select');
-          }
-        });
-
-        const updateSelectionState = () => {
-          const activeObj = canvas.getActiveObject();
-          setHasSelection(!!activeObj);
-          if (activeObj) {
-            const type = activeObj.type;
-            const isText = type === 'i-text' || type === 'text';
-            if (activeObj.type !== 'activeSelection') {
-               setSelectedProperties(prev => ({
-                 ...prev,
-                 stroke: activeObj.stroke || prev.stroke,
-                 strokeWidth: activeObj.strokeWidth || prev.strokeWidth,
-                 fill: isText ? (activeObj.fill as string) : prev.fill,
-                 fontSize: (activeObj as any).fontSize || prev.fontSize,
-                 type: activeObj.type || ''
-               }));
-            } else {
-               setSelectedProperties(prev => ({ ...prev, type: 'group' }));
-            }
-          } else {
-             setSelectedProperties(prev => ({ ...prev, type: '' }));
-          }
-        };
-
-        canvas.on('selection:created', updateSelectionState);
-        canvas.on('selection:updated', updateSelectionState);
-        canvas.on('selection:cleared', updateSelectionState);
-
-        canvas.on('mouse:wheel', function(opt: any) {
-          const delta = opt.e.deltaY;
-          let zoom = canvas.getZoom();
-          zoom *= 0.999 ** delta;
-          if (zoom > 20) zoom = 20;
-          if (zoom < 0.01) zoom = 0.01;
-          canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
-          opt.e.preventDefault();
-          opt.e.stopPropagation();
-          setContextMenu(prev => ({ ...prev, visible: false }));
-        });
-      };
-
-      initFabric();
-      startRenderLoop();
-
-      const handleKeyDown = (e: KeyboardEvent) => {
-        if (e.key === 'Delete' || e.key === 'Backspace') {
-          if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
-            handleDeleteSelection();
-          }
-        }
-      };
-      window.addEventListener('keydown', handleKeyDown);
+      // Grid Pattern
+      const patternCanvas = document.createElement('canvas');
+      patternCanvas.width = 20;
+      patternCanvas.height = 20;
+      const ctx = patternCanvas.getContext('2d');
+      if (ctx) {
+        ctx.fillStyle = '#cbd5e1';
+        ctx.beginPath();
+        ctx.arc(10, 10, 1, 0, Math.PI * 2);
+        ctx.fill();
+      }
       
-      const handleResize = () => {
-        if (fabricRef.current && containerRef.current) {
-          fabricRef.current.setWidth(containerRef.current.clientWidth);
-          fabricRef.current.setHeight(containerRef.current.clientHeight);
-        }
-      };
-      window.addEventListener('resize', handleResize);
+      const gridPattern = new fabric.Pattern({
+        source: patternCanvas,
+        repeat: 'repeat'
+      });
+      
+      // Explicitly set background and render
+      canvas.setBackgroundColor(gridPattern, () => {
+         canvas.renderAll();
+      });
+      
+      fabricRef.current = canvas;
 
-      return () => {
-        window.removeEventListener('openPromptPopup', handleOpenPromptPopup as EventListener);
-        window.removeEventListener('resize', handleResize);
-        window.removeEventListener('keydown', handleKeyDown);
-        if (renderLoopId.current) cancelAnimationFrame(renderLoopId.current);
-        if (fabricRef.current) {
-          fabricRef.current.dispose();
-          fabricRef.current = null;
+      // --- Load JSON State ---
+      const stateToLoad = currentProject?.data && Object.keys(currentProject.data).length > 0 ? currentProject.data : initialCanvasState;
+      
+      if (stateToLoad) {
+        canvas.loadFromJSON(stateToLoad, () => {
+           canvas.renderAll();
+           console.log("Canvas state loaded.");
+        });
+      }
+      // -----------------------
+
+      let isDragging = false;
+      let isDrawingShape = false;
+      let shapeOriginX = 0;
+      let shapeOriginY = 0;
+      let activeShape: any = null;
+      let lastPosX = 0;
+      let lastPosY = 0;
+
+      canvas.on('object:moving', (e: any) => {
+        const target = e.target;
+        if (!target) return;
+        const snapDist = 15; 
+        const gridSize = 50; 
+        let newLeft = target.left;
+        let newTop = target.top;
+        
+        if (Math.abs(newLeft % gridSize) < snapDist) newLeft = Math.round(newLeft / gridSize) * gridSize;
+        if (Math.abs(newTop % gridSize) < snapDist) newTop = Math.round(newTop / gridSize) * gridSize;
+        
+        canvas.forEachObject((obj: any) => {
+           if (obj === target || !obj.visible) return; 
+           const tWidth = target.width * target.scaleX;
+           const tHeight = target.height * target.scaleY;
+           const oWidth = obj.width * obj.scaleX;
+           const oHeight = obj.height * obj.scaleY;
+
+           if (Math.abs(newLeft - obj.left) < snapDist) newLeft = obj.left;
+           if (Math.abs(newTop - obj.top) < snapDist) newTop = obj.top;
+           if (Math.abs((newLeft + tWidth) - (obj.left + oWidth)) < snapDist) newLeft = obj.left + oWidth - tWidth;
+           if (Math.abs((newTop + tHeight) - (obj.top + oHeight)) < snapDist) newTop = obj.top + oHeight - tHeight;
+        });
+        target.set({ left: newLeft, top: newTop });
+      });
+
+      canvas.on('mouse:down', function(opt: any) {
+        const evt = opt.e;
+        if (opt.button === 3 || opt.e.button === 2) {
+           const activeObj = canvas.getActiveObject();
+           if (opt.target && opt.target !== activeObj) {
+              canvas.setActiveObject(opt.target);
+           }
+           setContextMenu({
+             visible: true,
+             x: evt.clientX,
+             y: evt.clientY,
+             hasSelection: !!canvas.getActiveObject()
+           });
+           return;
+        }
+        setContextMenu(prev => ({ ...prev, visible: false }));
+        setPromptPopup(prev => ({ ...prev, visible: false }));
+
+        if (evt.altKey === true) {
+          isDragging = true;
+          canvas.selection = false;
+          lastPosX = evt.clientX;
+          lastPosY = evt.clientY;
+          return;
+        }
+
+        const pointer = canvas.getPointer(evt);
+        const tool = (canvas as any).customTool; 
+        const props = (canvas as any).customProps || {};
+
+        if (tool === 'rect' || tool === 'circle') {
+           isDrawingShape = true;
+           shapeOriginX = pointer.x;
+           shapeOriginY = pointer.y;
+
+           if (tool === 'rect') {
+              activeShape = new fabric.Rect({
+                 left: shapeOriginX,
+                 top: shapeOriginY,
+                 originX: 'left',
+                 originY: 'top',
+                 width: 0,
+                 height: 0,
+                 stroke: props.stroke || '#000000',
+                 strokeWidth: props.strokeWidth || 3,
+                 fill: 'transparent',
+                 transparentCorners: false
+              });
+           } else if (tool === 'circle') {
+              activeShape = new fabric.Circle({
+                 left: shapeOriginX,
+                 top: shapeOriginY,
+                 originX: 'left',
+                 originY: 'top',
+                 radius: 0,
+                 stroke: props.stroke || '#000000',
+                 strokeWidth: props.strokeWidth || 3,
+                 fill: 'transparent',
+                 transparentCorners: false
+              });
+           }
+           canvas.add(activeShape);
+           canvas.selection = false; 
+        } else if (tool === 'text') {
+           const text = new fabric.IText('Type Here', {
+             left: pointer.x,
+             top: pointer.y,
+             fontFamily: 'Inter',
+             fill: props.fill || '#000000',
+             fontSize: props.fontSize || 32,
+           });
+           canvas.add(text);
+           canvas.setActiveObject(text);
+           setActiveTool('select');
+        }
+      });
+
+      canvas.on('mouse:move', function(opt: any) {
+        if (isDragging) {
+          const e = opt.e;
+          const vpt = canvas.viewportTransform;
+          vpt[4] += e.clientX - lastPosX;
+          vpt[5] += e.clientY - lastPosY;
+          canvas.requestRenderAll();
+          lastPosX = e.clientX;
+          lastPosY = e.clientY;
+          return;
+        }
+
+        if (isDrawingShape && activeShape) {
+           const pointer = canvas.getPointer(opt.e);
+           if (activeShape.type === 'rect') {
+              const w = Math.abs(pointer.x - shapeOriginX);
+              const h = Math.abs(pointer.y - shapeOriginY);
+              activeShape.set({ width: w, height: h });
+              if (shapeOriginX > pointer.x) activeShape.set({ left: pointer.x });
+              if (shapeOriginY > pointer.y) activeShape.set({ top: pointer.y });
+           } else if (activeShape.type === 'circle') {
+              const radius = Math.abs(pointer.x - shapeOriginX) / 2;
+              activeShape.set({ radius: radius });
+              if (shapeOriginX > pointer.x) activeShape.set({ left: pointer.x });
+              if (shapeOriginY > pointer.y) activeShape.set({ top: pointer.y });
+           }
+           canvas.renderAll();
+        }
+      });
+
+      canvas.on('mouse:up', function(opt: any) {
+        canvas.setViewportTransform(canvas.viewportTransform);
+        isDragging = false;
+        if (isDrawingShape) {
+           isDrawingShape = false;
+           if (activeShape) {
+              activeShape.setCoords();
+              if ((activeShape.width || 0) < 5 && (activeShape.radius || 0) < 5) {
+                 canvas.remove(activeShape);
+              } else {
+                 canvas.setActiveObject(activeShape);
+                 setHasSelection(true);
+              }
+           }
+           activeShape = null;
+           canvas.selection = true;
+           setActiveTool('select');
+        }
+      });
+
+      const updateSelectionState = () => {
+        const activeObj = canvas.getActiveObject();
+        setHasSelection(!!activeObj);
+        if (activeObj) {
+          const type = activeObj.type;
+          const isText = type === 'i-text' || type === 'text';
+          if (activeObj.type !== 'activeSelection') {
+             setSelectedProperties(prev => ({
+               ...prev,
+               stroke: activeObj.stroke || prev.stroke,
+               strokeWidth: activeObj.strokeWidth || prev.strokeWidth,
+               fill: isText ? (activeObj.fill as string) : prev.fill,
+               fontSize: (activeObj as any).fontSize || prev.fontSize,
+               type: activeObj.type || ''
+             }));
+          } else {
+             setSelectedProperties(prev => ({ ...prev, type: 'group' }));
+          }
+        } else {
+           setSelectedProperties(prev => ({ ...prev, type: '' }));
         }
       };
+
+      canvas.on('selection:created', updateSelectionState);
+      canvas.on('selection:updated', updateSelectionState);
+      canvas.on('selection:cleared', updateSelectionState);
+
+      canvas.on('mouse:wheel', function(opt: any) {
+        const delta = opt.e.deltaY;
+        let zoom = canvas.getZoom();
+        zoom *= 0.999 ** delta;
+        if (zoom > 20) zoom = 20;
+        if (zoom < 0.01) zoom = 0.01;
+        canvas.zoomToPoint({ x: opt.e.offsetX, y: opt.e.offsetY }, zoom);
+        opt.e.preventDefault();
+        opt.e.stopPropagation();
+        setContextMenu(prev => ({ ...prev, visible: false }));
+      });
+      
+      startRenderLoop();
+    };
+
+    attemptInit();
+
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Delete' || e.key === 'Backspace') {
+        if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+          handleDeleteSelection();
+        }
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    
+    // Robust Resize Handling using ResizeObserver for container
+    const resizeObserver = new ResizeObserver((entries) => {
+      for (let entry of entries) {
+         if (fabricRef.current) {
+            const { width, height } = entry.contentRect;
+            fabricRef.current.setWidth(width);
+            fabricRef.current.setHeight(height);
+            fabricRef.current.calcOffset();
+            fabricRef.current.requestRenderAll();
+         }
+      }
+    });
+    
+    if (containerRef.current) {
+       resizeObserver.observe(containerRef.current);
     }
+
+    return () => {
+      if (initRequestRef.current) cancelAnimationFrame(initRequestRef.current);
+      window.removeEventListener('openPromptPopup', handleOpenPromptPopup as EventListener);
+      window.removeEventListener('keydown', handleKeyDown);
+      resizeObserver.disconnect();
+      if (renderLoopId.current) cancelAnimationFrame(renderLoopId.current);
+      if (fabricRef.current) {
+        fabricRef.current.dispose();
+        fabricRef.current = null;
+      }
+    };
   }, [view, currentProject]); // Re-initialize when view or project changes
 
   useEffect(() => {
@@ -734,55 +770,56 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         `}
       </style>
       <div id="nc-root" className="relative w-full h-full bg-slate-50 text-slate-800 isolate overflow-hidden">
+        
         {view === 'workspace' ? (
-          <Workspace 
-            onOpenProject={handleOpenProject} 
-            onCreateNew={handleCreateNew} 
-            gallery={gallery}
-          />
+           <Workspace 
+              onOpenProject={handleOpenProject} 
+              onCreateNew={handleCreateNew} 
+              gallery={gallery}
+           />
         ) : (
-          <>
-            <Toolbar 
-              activeTool={activeTool} 
-              onSelectTool={setActiveTool} 
-              onDelete={handleDeleteSelection}
-              onDownload={handleDownloadSelection}
-              onUploadImage={handleUploadImage}
-              onSaveProject={handleSaveProject}
-              onHome={() => setView('workspace')}
-              selectedProperties={selectedProperties}
-              onUpdateProperty={handlePropertyChange}
-              hasSelection={hasSelection}
-            />
-            <AIPanel 
-              onGenerate={handleGenerate} 
-              isGenerating={isGenerating} 
-              hasSelection={hasSelection}
-            />
-            <ContextMenu 
-              x={contextMenu.x}
-              y={contextMenu.y}
-              visible={contextMenu.visible}
-              onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
-              onCompose={handleCompose}
-              onMatting={handleMatting}
-              onFlatten={handleFlattenSelection}
-              onDelete={handleDeleteSelection}
-            />
-            <PromptPopup 
-              visible={promptPopup.visible}
-              x={promptPopup.x}
-              y={promptPopup.y}
-              prompt={promptPopup.prompt}
-              onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
-            />
-            <div ref={containerRef} className="absolute inset-0 z-0 bg-white">
-              <canvas ref={canvasRef} />
-              <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-[#0B1220]/80 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-300 pointer-events-none border border-white/20 select-none shadow-lg">
-                {currentProject?.name} • Right-click objects for AI actions • Alt+Drag to Pan
+           <>
+              <Toolbar 
+                activeTool={activeTool} 
+                onSelectTool={setActiveTool} 
+                onDelete={handleDeleteSelection}
+                onDownload={handleDownloadSelection}
+                onUploadImage={handleUploadImage}
+                onSaveProject={handleSaveProject}
+                onHome={() => setView('workspace')}
+                selectedProperties={selectedProperties}
+                onUpdateProperty={handlePropertyChange}
+                hasSelection={hasSelection}
+              />
+              <AIPanel 
+                onGenerate={handleGenerate} 
+                isGenerating={isGenerating} 
+                hasSelection={hasSelection}
+              />
+              <ContextMenu 
+                x={contextMenu.x}
+                y={contextMenu.y}
+                visible={contextMenu.visible}
+                onClose={() => setContextMenu(prev => ({ ...prev, visible: false }))}
+                onCompose={handleCompose}
+                onMatting={handleMatting}
+                onFlatten={handleFlattenSelection}
+                onDelete={handleDeleteSelection}
+              />
+              <PromptPopup 
+                visible={promptPopup.visible}
+                x={promptPopup.x}
+                y={promptPopup.y}
+                prompt={promptPopup.prompt}
+                onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
+              />
+              <div ref={containerRef} className="absolute inset-0 z-0 bg-white touch-none pointer-events-auto">
+                <canvas ref={canvasRef} />
+                <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-[#0B1220]/80 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-300 pointer-events-none border border-white/20 select-none shadow-lg">
+                    {currentProject?.name} • Right-click objects for AI actions • Alt+Drag to Pan
+                </div>
               </div>
-            </div>
-          </>
+           </>
         )}
       </div>
     </>

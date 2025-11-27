@@ -46,13 +46,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
   const isShapeOrDraw = ['rect', 'circle', 'path', 'line'].includes(selectedProperties.type) || activeTool === 'draw' || activeTool === 'rect' || activeTool === 'circle';
 
   return (
-    <div className={`absolute top-4 left-4 z-50 flex flex-col gap-2 transition-all duration-300 ease-in-out`}>
+    <div className={`absolute top-4 left-4 z-50 flex flex-col gap-2 transition-all duration-300 ease-in-out pointer-events-none`}>
       
       {/* Main Toolbar */}
-      <div className={`flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 ${isCollapsed ? 'w-12' : 'w-16'}`}>
+      <div className={`flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 pointer-events-auto ${isCollapsed ? 'w-12' : 'w-16'}`}>
         {/* Header / Collapse Toggle */}
         <div 
-          className="h-8 flex items-center justify-center border-b border-white/10 cursor-pointer hover:bg-white/10 transition-colors"
+          className="h-8 flex items-center justify-center border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors"
           onClick={() => setIsCollapsed(!isCollapsed)}
           title={isCollapsed ? "Expand" : "Collapse"}
         >
@@ -143,7 +143,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
       {/* Style Editor Panel */}
       {showStyleEditor && !isCollapsed && (
-        <div className="w-64 bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-200">
+        <div className="w-64 bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-200 pointer-events-auto">
            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
              <Palette size={12} />
              Style Editor
@@ -151,46 +151,46 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
            {/* Color Picker */}
            <div className="mb-4">
-            <label className="text-xs text-slate-300 mb-2 block">{isTextSelected ? 'Text Color' : 'Stroke Color'}</label>
-            <div className="flex flex-wrap gap-1.5">
-              {colors.map(color => (
-                <button
-                   key={color}
-                   onClick={() => onUpdateProperty(isTextSelected ? 'fill' : 'stroke', color)}
-                   className={`w-5 h-5 rounded-full border border-slate-600/50 transition-transform hover:scale-110 ${
+             <label className="text-xs text-slate-300 mb-2 block">{isTextSelected ? 'Text Color' : 'Stroke Color'}</label>
+             <div className="flex flex-wrap gap-1.5">
+               {colors.map(color => (
+                 <button
+                    key={color}
+                    onClick={() => onUpdateProperty(isTextSelected ? 'fill' : 'stroke', color)}
+                    className={`w-5 h-5 rounded-full border border-slate-600/50 transition-transform hover:scale-110 ${
                       (isTextSelected ? selectedProperties.fill : selectedProperties.stroke) === color ? 'ring-2 ring-white ring-offset-1 ring-offset-slate-900' : ''
-                   }`}
-                   style={{ backgroundColor: color }}
-                />
-              ))}
-              <label className="w-5 h-5 rounded-full border border-slate-600/50 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 cursor-pointer hover:scale-110 relative overflow-hidden">
-                <input 
-                   type="color" 
-                   className="absolute inset-0 opacity-0 cursor-pointer"
-                   value={isTextSelected ? selectedProperties.fill : selectedProperties.stroke}
-                   onChange={(e) => onUpdateProperty(isTextSelected ? 'fill' : 'stroke', e.target.value)}
+                    }`}
+                    style={{ backgroundColor: color }}
                  />
-              </label>
-            </div>
-          </div>
+               ))}
+               <label className="w-5 h-5 rounded-full border border-slate-600/50 bg-gradient-to-br from-indigo-500 via-purple-500 to-pink-500 cursor-pointer hover:scale-110 relative overflow-hidden">
+                 <input 
+                    type="color" 
+                    className="absolute inset-0 opacity-0 cursor-pointer"
+                    value={isTextSelected ? selectedProperties.fill : selectedProperties.stroke}
+                    onChange={(e) => onUpdateProperty(isTextSelected ? 'fill' : 'stroke', e.target.value)}
+                  />
+               </label>
+             </div>
+           </div>
 
            {/* Stroke Width Slider (Shapes/Draw) */}
            {isShapeOrDraw && (
              <div className="mb-2">
-              <div className="flex justify-between text-xs text-slate-300 mb-1">
-                <span>Stroke Width</span>
-                <span>{selectedProperties.strokeWidth}px</span>
-              </div>
-              <input 
-                 type="range" 
-                 min="1" 
-                 max="20" 
-                 value={selectedProperties.strokeWidth}
-                 onChange={(e) => onUpdateProperty('strokeWidth', parseInt(e.target.value))}
-                 className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
-              />
-            </div>
-          )}
+               <div className="flex justify-between text-xs text-slate-300 mb-1">
+                 <span>Stroke Width</span>
+                 <span>{selectedProperties.strokeWidth}px</span>
+               </div>
+               <input 
+                  type="range" 
+                  min="1" 
+                  max="20" 
+                  value={selectedProperties.strokeWidth}
+                  onChange={(e) => onUpdateProperty('strokeWidth', parseInt(e.target.value))}
+                  className="w-full h-1.5 bg-slate-700 rounded-lg appearance-none cursor-pointer accent-indigo-500"
+               />
+             </div>
+           )}
 
            {/* Font Size (Text) */}
            {isTextSelected && (
