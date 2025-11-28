@@ -8,7 +8,7 @@ import { ModelType, ContextMenuState, SelectedProperties, AIData, NanoCanvasProp
 import { NanoAI, GenerateOptions } from './services/aiService';
 
 // Default Config if none provided (for standalone running)
-const DEFAULT_API_KEY = "AIzaSyDEskyGfoYxEqC1QRA4H1vodqjMOFrmCQY";
+const DEFAULT_API_KEY = "";
 
 const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingEvent }) => {
   // Editor State

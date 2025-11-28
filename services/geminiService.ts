@@ -120,7 +120,7 @@ export const generateContent = async (options: GenerateOptions): Promise<{ text?
         if (content && content.parts) {
           for (const part of content.parts) {
             if (part.inlineData) {
-              resultImage = part.inlineData.data;
+              resultImage = part.inlineData.data || '';
             } else if (part.text) {
               resultText += part.text;
             }
