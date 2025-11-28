@@ -4,16 +4,14 @@ import Toolbar from './components/Toolbar';
 import AIPanel from './components/AIPanel';
 import ContextMenu from './components/ContextMenu';
 import PromptPopup from './components/PromptPopup';
-import Workspace from './components/Workspace';
-import { ModelType, ContextMenuState, SelectedProperties, AIData, NanoCanvasProps, Project, GalleryItem, Template } from './types';
+import { ModelType, ContextMenuState, SelectedProperties, AIData, NanoCanvasProps, Project, GalleryItem } from './types';
 import { NanoAI, GenerateOptions } from './services/aiService';
 
 // Default Config if none provided (for standalone running)
 const DEFAULT_API_KEY = "AIzaSyDEskyGfoYxEqC1QRA4H1vodqjMOFrmCQY";
 
 const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingEvent }) => {
-  // Routing State
-  const [view, setView] = useState<'workspace' | 'editor'>('workspace');
+  // Editor State
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
   const [initialTemplatePrompt, setInitialTemplatePrompt] = useState<string>('');
@@ -82,24 +80,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
     renderLoopId.current = window.requestAnimationFrame(loop);
   };
 
-  // --- Workspace Logic ---
-
-  const handleOpenProject = (project: Project) => {
-    setCurrentProject(project);
-    setView('editor');
-  };
-
-  const handleCreateNew = (template?: Template) => {
-    setCurrentProject({
-      id: Date.now().toString(),
-      name: template ? `${template.name} Project` : 'Untitled Project',
-      data: {},
-      createdAt: Date.now(),
-      updatedAt: Date.now()
-    });
-    setInitialTemplatePrompt(template?.promptTemplate || '');
-    setView('editor');
-  };
+  // --- Project Save ---
 
   const handleSaveProject = () => {
      if (!fabricRef.current) return;
@@ -130,7 +111,6 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
   // -----------------------
 
   useEffect(() => {
-    if (view !== 'editor') return;
 
     const handleOpenPromptPopup = (e: CustomEvent) => {
       setPromptPopup({
@@ -181,7 +161,10 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         borderDashArray: [4, 4]
       });
 
-      fabric.Object.prototype.controls.aiInfo = new fabric.Control({
+      if (!(fabric.Object.prototype as any).controls) {
+        (fabric.Object.prototype as any).controls = {} as any;
+      }
+      (fabric.Object.prototype as any).controls.aiInfo = new fabric.Control({
         x: 0.5,
         y: -0.5,
         offsetX: 15,
@@ -230,6 +213,9 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         stopContextMenu: true
       });
 
+      (canvas as any).customTool = activeTool;
+      (canvas as any).customProps = selectedProperties;
+
       // Grid Pattern
       const patternCanvas = document.createElement('canvas');
       patternCanvas.width = 20;
@@ -247,21 +233,28 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         repeat: 'repeat'
       });
       
-      // Explicitly set background and render
-      canvas.setBackgroundColor(gridPattern, () => {
-         canvas.renderAll();
-      });
+      // Explicitly set background pattern and render (Fabric 6 compatible)
+      (canvas as any).backgroundColor = gridPattern;
+      canvas.requestRenderAll();
       
       fabricRef.current = canvas;
 
       // --- Load JSON State ---
       const stateToLoad = currentProject?.data && Object.keys(currentProject.data).length > 0 ? currentProject.data : initialCanvasState;
-      
+
       if (stateToLoad) {
-        canvas.loadFromJSON(stateToLoad, () => {
-           canvas.renderAll();
-           console.log("Canvas state loaded.");
-        });
+        const tryLoad = () => {
+          const hasCtx = (canvas as any).contextContainer && typeof (canvas as any).contextContainer.clearRect === 'function'
+          if (!hasCtx) {
+            requestAnimationFrame(tryLoad);
+            return;
+          }
+          canvas.loadFromJSON(stateToLoad, () => {
+            canvas.requestRenderAll();
+            console.log("Canvas state loaded.");
+          });
+        };
+        requestAnimationFrame(tryLoad);
       }
       // -----------------------
 
@@ -317,7 +310,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         setContextMenu(prev => ({ ...prev, visible: false }));
         setPromptPopup(prev => ({ ...prev, visible: false }));
 
-        if (evt.altKey === true) {
+        if (evt.altKey === true || ((canvas as any).customTool === 'move')) {
           isDragging = true;
           canvas.selection = false;
           lastPosX = evt.clientX;
@@ -507,7 +500,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         fabricRef.current = null;
       }
     };
-  }, [view, currentProject]); // Re-initialize when view or project changes
+  }, [currentProject]);
 
   useEffect(() => {
      if (fabricRef.current) {
@@ -516,8 +509,14 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         if (activeTool === 'select') {
            fabricRef.current.defaultCursor = 'default';
            fabricRef.current.isDrawingMode = false;
+        } else if (activeTool === 'move') {
+           fabricRef.current.defaultCursor = 'grab';
+           fabricRef.current.isDrawingMode = false;
         } else if (activeTool === 'draw') {
            fabricRef.current.isDrawingMode = true;
+           if (!fabricRef.current.freeDrawingBrush && (window as any).fabric?.PencilBrush) {
+              fabricRef.current.freeDrawingBrush = new (window as any).fabric.PencilBrush(fabricRef.current);
+           }
            if(fabricRef.current.freeDrawingBrush) {
               fabricRef.current.freeDrawingBrush.color = selectedProperties.stroke;
               fabricRef.current.freeDrawingBrush.width = selectedProperties.strokeWidth;
@@ -771,14 +770,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
       </style>
       <div id="nc-root" className="relative w-full h-full bg-slate-50 text-slate-800 isolate overflow-hidden">
         
-        {view === 'workspace' ? (
-           <Workspace 
-              onOpenProject={handleOpenProject} 
-              onCreateNew={handleCreateNew} 
-              gallery={gallery}
-           />
-        ) : (
-           <>
+        <>
               <Toolbar 
                 activeTool={activeTool} 
                 onSelectTool={setActiveTool} 
@@ -786,7 +778,6 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
                 onDownload={handleDownloadSelection}
                 onUploadImage={handleUploadImage}
                 onSaveProject={handleSaveProject}
-                onHome={() => setView('workspace')}
                 selectedProperties={selectedProperties}
                 onUpdateProperty={handlePropertyChange}
                 hasSelection={hasSelection}
@@ -819,8 +810,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
                     {currentProject?.name} • Right-click objects for AI actions • Alt+Drag to Pan
                 </div>
               </div>
-           </>
-        )}
+        </>
       </div>
     </>
   );

@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { MousePointer2, Square, Circle, Type, Pen, Image as ImageIcon, Trash2, Download, ChevronLeft, ChevronRight, Palette, Save, Home } from 'lucide-react';
+import { MousePointer2, Square, Circle, Type, Pen, Image as ImageIcon, Trash2, Download, ChevronLeft, ChevronRight, Palette, Save, Hand } from 'lucide-react';
 import { SelectedProperties } from '../types';
 
 interface ToolbarProps {
@@ -10,7 +10,6 @@ interface ToolbarProps {
   onDownload: () => void;
   onUploadImage: (e: React.ChangeEvent<HTMLInputElement>) => void;
   onSaveProject: () => void;
-  onHome: () => void;
   selectedProperties: SelectedProperties;
   onUpdateProperty: (key: keyof SelectedProperties, value: any) => void;
   hasSelection: boolean;
@@ -23,7 +22,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onDownload, 
   onUploadImage,
   onSaveProject,
-  onHome,
   selectedProperties,
   onUpdateProperty,
   hasSelection
@@ -32,10 +30,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
   const tools = [
     { id: 'select', icon: <MousePointer2 size={20} />, label: 'Select' },
+    { id: 'move', icon: <Hand size={20} />, label: 'Move' },
+    { id: 'draw', icon: <Pen size={20} />, label: 'Draw' },
     { id: 'rect', icon: <Square size={20} />, label: 'Rectangle' },
     { id: 'circle', icon: <Circle size={20} />, label: 'Circle' },
     { id: 'text', icon: <Type size={20} />, label: 'Text' },
-    { id: 'draw', icon: <Pen size={20} />, label: 'Draw' },
   ];
 
   // Colors for Quick Picker
@@ -46,10 +45,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
   const isShapeOrDraw = ['rect', 'circle', 'path', 'line'].includes(selectedProperties.type) || activeTool === 'draw' || activeTool === 'rect' || activeTool === 'circle';
 
   return (
-    <div className={`absolute top-4 left-4 z-50 flex flex-col gap-2 transition-all duration-300 ease-in-out pointer-events-none`}>
+    <div className={`absolute top-4 left-4 z-50 flex flex-col gap-2 transition-all duration-300 ease-in-out pointer-events-none`} style={{ transform: 'scale(0.9)', transformOrigin: 'top left' }}>
       
       {/* Main Toolbar */}
-      <div className={`flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 pointer-events-auto ${isCollapsed ? 'w-12' : 'w-16'}`}>
+      <div className={`flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden transition-all duration-300 pointer-events-auto ${isCollapsed ? 'w-12' : 'w-16'}`} style={{ maxHeight: 'calc(100vh - 96px)' }}>
         {/* Header / Collapse Toggle */}
         <div 
           className="h-8 flex items-center justify-center border-b border-white/10 cursor-pointer hover:bg-white/5 transition-colors"
@@ -59,7 +58,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
           {isCollapsed ? <ChevronRight size={16} className="text-slate-300" /> : <ChevronLeft size={16} className="text-slate-300" />}
         </div>
 
-        <div className={`flex flex-col items-center gap-2 p-2 ${isCollapsed ? 'py-2' : 'py-2'}`}>
+        <div className={`flex flex-col items-center p-2 ${isCollapsed ? 'py-2' : 'py-2'}`} style={{ overflowY: 'auto' }}>
           {!isCollapsed && (
               <div className="mb-2 text-[10px] font-bold text-slate-400 uppercase tracking-widest">Tools</div>
           )}
@@ -103,13 +102,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
             <Save size={20} />
           </button>
 
-          <button
-            onClick={onHome}
-            className={`flex items-center justify-center rounded-xl transition-all duration-200 mb-1 ${isCollapsed ? 'w-8 h-8' : 'w-12 h-12'} text-slate-300 hover:bg-white/10 hover:text-white`}
-            title="Back to Workspace"
-          >
-            <Home size={20} />
-          </button>
 
           <div className="h-px w-8 bg-white/20 my-1" />
 
@@ -143,7 +135,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
       {/* Style Editor Panel */}
       {showStyleEditor && !isCollapsed && (
-        <div className="w-64 bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-200 pointer-events-auto">
+        <div className="w-64 bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl p-4 animate-in fade-in slide-in-from-left-4 duration-200 pointer-events-auto" style={{ maxHeight: 'calc(100vh - 96px)', overflowY: 'auto' }}>
            <div className="text-[10px] font-bold text-slate-400 uppercase tracking-widest mb-3 flex items-center gap-2">
              <Palette size={12} />
              Style Editor

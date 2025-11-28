@@ -82,7 +82,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
   };
 
   return (
-    <div className={`absolute top-4 right-4 z-50 transition-all duration-300 ease-in-out flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden ${isCollapsed ? 'w-16 h-16 rounded-full' : 'w-[400px] h-[calc(100vh-2rem)]'}`}>
+    <div className={`absolute top-4 right-4 z-50 transition-all duration-300 ease-in-out flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden ${isCollapsed ? 'w-16 h-16 rounded-full' : 'w-[400px] h-[calc(100vh-2rem)]'}`} style={{ transform: 'scale(0.9)', transformOrigin: 'top right' }}>
       
       {/* Collapsed State Toggle */}
       {isCollapsed && (
@@ -128,9 +128,9 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                         ? 'bg-indigo-600 text-white shadow-sm'
                         : 'text-slate-300 hover:text-white hover:bg-white/5'
                     }`}
-                    title="Gemini Nano 1 (Fast)"
+                    title="Image Fast"
                 >
-                    Nano 1
+                    Image Fast
                 </button>
                 <button
                     onClick={() => setSelectedModel(ModelType.NANO_BANANA_2)}
@@ -139,9 +139,9 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                         ? 'bg-purple-600 text-white shadow-sm'
                         : 'text-slate-300 hover:text-white hover:bg-white/5'
                     }`}
-                    title="Gemini Nano 2 (Pro)"
+                    title="Image HQ"
                 >
-                    Nano 2
+                    Image HQ
                 </button>
                 <button
                     onClick={() => setSelectedModel(ModelType.VEO_FAST)}
@@ -150,9 +150,9 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                         ? 'bg-rose-600 text-white shadow-sm'
                         : 'text-slate-300 hover:text-white hover:bg-white/5'
                     }`}
-                    title="Veo 2"
+                    title="Video Fast"
                 >
-                    Veo 2
+                    Video Fast
                 </button>
                 <button
                     onClick={() => setSelectedModel(ModelType.VEO_HQ)}
@@ -161,9 +161,9 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                         ? 'bg-rose-800 text-white shadow-sm'
                         : 'text-slate-300 hover:text-white hover:bg-white/5'
                     }`}
-                    title="Veo HQ"
+                    title="Video HQ"
                 >
-                    Veo HQ
+                    Video HQ
                 </button>
              </div>
 
