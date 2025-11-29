@@ -23,7 +23,7 @@ export class NanoAI {
     }
   }
 
-  public async generateContent(options: GenerateOptions): Promise<{ text?: string; imageBase64?: string }> {
+  public async generateContent(options: GenerateOptions): Promise<{ text?: string; imageBase64?: string; imageUrl?: string }> {
     const { prompt, model, images } = options;
 
     const imageDataUrl = images && images.length > 0 ? `data:image/png;base64,${images[0]}` : undefined;
@@ -48,7 +48,10 @@ export class NanoAI {
     }
 
     this.emitBilling({ model, operation: 'image', status: 'success' });
-    return { imageBase64: (imageUrl as string).split(',')[1] };
+    return {
+      imageUrl: imageUrl as string,
+      imageBase64: (imageUrl as string).includes(',') ? (imageUrl as string).split(',')[1] : undefined
+    };
   }
 
   public async generateVideoContent(options: GenerateOptions): Promise<string> {

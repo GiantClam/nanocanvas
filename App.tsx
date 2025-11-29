@@ -706,9 +706,9 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
          return;
       }
 
-      const { imageBase64 } = await aiService.generateContent({ prompt: finalPrompt, model, images: imagesPayload, referenceWidth: refWidth, referenceHeight: refHeight });
-      if (imageBase64) {
-        const imageUrl = `data:image/png;base64,${imageBase64}`;
+      const { imageUrl: returnedUrl, imageBase64 } = await aiService.generateContent({ prompt: finalPrompt, model, images: imagesPayload, referenceWidth: refWidth, referenceHeight: refHeight });
+      const imageUrl = returnedUrl || (imageBase64 ? `data:image/png;base64,${imageBase64}` : undefined);
+      if (imageUrl) {
         
         // Add to Gallery
         addToGallery({
