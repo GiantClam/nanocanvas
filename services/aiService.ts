@@ -95,13 +95,17 @@ export class NanoAI {
 
     const imageDataUrl = images && images.length > 0 ? `data:image/png;base64,${images[0]}` : undefined;
 
+    // Currently server does not implement generation; it supports saving provided videoUrl/videoDataBase64 to R2.
+    // Here we just return an error until real generation flow is implemented.
     const response = await fetch('/api/ai/video/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, model, image: imageDataUrl })
+      body: JSON.stringify({ prompt, model, imageDataUrl })
     });
 
-    const result = await response.json();
+    const maybeText = await response.text();
+    let result: any;
+    try { result = JSON.parse(maybeText) } catch { result = { success: false, error: maybeText } }
 
     if (!response.ok || !result.success) {
       this.emitBilling({ model, operation: 'video', status: 'error', costMetric: result.error });

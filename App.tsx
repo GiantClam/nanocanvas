@@ -372,7 +372,8 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
                  transparentCorners: false
               });
            }
-           canvas.add(activeShape);
+          canvas.add(activeShape);
+          canvas.bringToFront(activeShape);
            canvas.selection = false; 
         } else if (tool === 'text') {
            const text = new fabric.IText('Type Here', {
@@ -382,8 +383,9 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
              fill: props.fill || '#000000',
              fontSize: props.fontSize || 32,
            });
-           canvas.add(text);
-           canvas.setActiveObject(text);
+          canvas.add(text);
+          canvas.bringToFront(text);
+          canvas.setActiveObject(text);
            setActiveTool('select');
         }
       });
@@ -484,7 +486,12 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
 
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Delete' || e.key === 'Backspace') {
-        if (document.activeElement?.tagName !== 'INPUT' && document.activeElement?.tagName !== 'TEXTAREA') {
+        const ae = document.activeElement as HTMLElement | null;
+        const isInput = ae && (ae.tagName === 'INPUT' || ae.tagName === 'TEXTAREA');
+        const isEditable = ae && (ae.isContentEditable || ae.getAttribute('role') === 'textbox');
+        const panelEl = document.querySelector('[data-ai-panel="true"]');
+        const inPanel = panelEl && ae ? panelEl.contains(ae) : false;
+        if (!isInput && !isEditable && !inPanel) {
           handleDeleteSelection();
         }
       }
@@ -590,12 +597,13 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
      const left = activeObj.left;
      const top = activeObj.top;
      canvas.remove(activeObj);
-     window.fabric.Image.fromURL(dataURL, (img: any) => {
-         img.set({ left: left, top: top, scaleX: 0.5, scaleY: 0.5 });
-         canvas.add(img);
-         canvas.setActiveObject(img);
-         canvas.renderAll();
-     });
+        window.fabric.Image.fromURL(dataURL, (img: any) => {
+            img.set({ left: left, top: top, scaleX: 0.5, scaleY: 0.5 });
+            canvas.add(img);
+            canvas.bringToFront(img);
+            canvas.setActiveObject(img);
+            canvas.renderAll();
+        });
      setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
@@ -626,6 +634,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
             const img = new window.fabric.Image(imgEl);
             img.scaleToWidth(300);
             fabricRef.current.add(img);
+            fabricRef.current.bringToFront(img);
             fabricRef.current.centerObject(img);
             fabricRef.current.setActiveObject(img);
             fabricRef.current.requestRenderAll();
@@ -720,35 +729,29 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
       }
 
       if (model === ModelType.VEO_FAST || model === ModelType.VEO_HQ) {
-         const videoUrl = await aiService.generateVideoContent({ prompt: finalPrompt, model, images: imagesPayload });
-         
-         // Add to Gallery
-         addToGallery({
-            id: Date.now().toString(),
-            url: videoUrl,
-            prompt: finalPrompt,
-            model: model,
-            timestamp: Date.now(),
-            type: 'video'
-         });
-
-         const videoEl = document.createElement('video');
-         videoEl.src = videoUrl;
-         videoEl.crossOrigin = 'anonymous';
-         videoEl.loop = true;
-         videoEl.muted = true;
-         videoEl.width = 1280;
-         videoEl.height = 720;
-         videoEl.play();
-         const fabricVid = new window.fabric.Image(videoEl, { left: targetX, top: targetY, objectCaching: false });
-         if (visualWidth > 0) fabricVid.scaleToWidth(visualWidth);
-         else fabricVid.scaleToWidth(400);
-         fabricVid.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
-         canvas.add(fabricVid);
-         canvas.setActiveObject(fabricVid);
-         canvas.renderAll();
-         setHasSelection(true);
-         return;
+         try {
+           const videoUrl = await aiService.generateVideoContent({ prompt: finalPrompt, model, images: imagesPayload });
+           addToGallery({ id: Date.now().toString(), url: videoUrl, prompt: finalPrompt, model: model, timestamp: Date.now(), type: 'video' });
+           const videoEl = document.createElement('video');
+           videoEl.src = videoUrl;
+           videoEl.crossOrigin = 'anonymous';
+           videoEl.loop = true;
+           videoEl.muted = true;
+           videoEl.width = 1280;
+           videoEl.height = 720;
+           videoEl.play();
+          const fabricVid = new window.fabric.Image(videoEl, { left: targetX, top: targetY, objectCaching: false });
+          if (visualWidth > 0) fabricVid.scaleToWidth(visualWidth); else fabricVid.scaleToWidth(400);
+          fabricVid.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
+          canvas.add(fabricVid);
+          canvas.bringToFront(fabricVid);
+          canvas.setActiveObject(fabricVid);
+          canvas.renderAll();
+           setHasSelection(true);
+           return;
+         } catch (e) {
+           console.warn('video generation failed, fallback to image', e);
+         }
       }
 
       const { imageUrl: returnedUrl, imageBase64 } = await aiService.generateContent({ prompt: finalPrompt, model, images: imagesPayload, referenceWidth: refWidth, referenceHeight: refHeight });
@@ -776,6 +779,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
           img.set({ left: targetX, top: targetY });
           img.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
           canvas.add(img);
+          canvas.bringToFront(img);
           canvas.setActiveObject(img);
           canvas.requestRenderAll();
           setHasSelection(true);
