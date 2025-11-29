@@ -23,6 +23,31 @@ export class NanoAI {
     }
   }
 
+  private async dataUrlToFile(dataUrl: string, filename: string): Promise<File> {
+    const res = await fetch(dataUrl);
+    const blob = await res.blob();
+    return new File([blob], filename, { type: blob.type || 'image/png' });
+  }
+
+  private async uploadToCloudflare(dataUrl: string, folder: string = 'ai-generated'):
+    Promise<{ url: string, display?: string, thumbnail?: string }> {
+    const file = await this.dataUrlToFile(dataUrl, `nano-${Date.now()}.png`);
+    const form = new FormData();
+    form.append('file', file);
+    form.append('folder', folder);
+    const resp = await fetch('/api/storage/cloudflare-images/upload', { method: 'POST', body: form });
+    const json = await resp.json();
+    if (!resp.ok || !json.success) throw new Error(json.error || 'Cloudflare upload failed');
+    const variants = json.data?.variants || {};
+    console.log('uploadToCloudflare result', { url: json.data?.url, variants });
+    return { url: json.data?.url, display: variants.display, thumbnail: variants.thumbnail };
+  }
+
+  public async uploadImageDataUrl(dataUrl: string, folder?: string): Promise<string> {
+    const uploaded = await this.uploadToCloudflare(dataUrl, folder || 'uploads');
+    return uploaded.display || uploaded.url;
+  }
+
   public async generateContent(options: GenerateOptions): Promise<{ text?: string; imageBase64?: string; imageUrl?: string }> {
     const { prompt, model, images } = options;
 
@@ -47,10 +72,21 @@ export class NanoAI {
       throw new Error('No image returned');
     }
 
+    let finalUrl = imageUrl as string;
+    if (finalUrl.startsWith('data:')) {
+      try {
+        const uploaded = await this.uploadToCloudflare(finalUrl);
+        finalUrl = uploaded.display || uploaded.url;
+        console.log('generateContent uploaded image url', finalUrl);
+      } catch (e) {
+        console.warn('Cloudflare upload failed, using data URL locally', e);
+      }
+    }
+
     this.emitBilling({ model, operation: 'image', status: 'success' });
     return {
-      imageUrl: imageUrl as string,
-      imageBase64: (imageUrl as string).includes(',') ? (imageUrl as string).split(',')[1] : undefined
+      imageUrl: finalUrl,
+      imageBase64: finalUrl.startsWith('data:') && (finalUrl as string).includes(',') ? (finalUrl as string).split(',')[1] : undefined
     };
   }
 

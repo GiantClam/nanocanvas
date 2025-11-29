@@ -49,7 +49,10 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
   useEffect(() => {
     try {
        const savedGallery = localStorage.getItem('nc_gallery');
-       if (savedGallery) setGallery(JSON.parse(savedGallery));
+       if (savedGallery) {
+         const parsed = JSON.parse(savedGallery);
+         setGallery(Array.isArray(parsed) ? parsed as any : []);
+       }
     } catch(e) { console.error("Gallery load error", e); }
   }, []);
 
@@ -57,7 +60,23 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
   const addToGallery = (item: GalleryItem) => {
     const updated = [item, ...gallery];
     setGallery(updated);
-    localStorage.setItem('nc_gallery', JSON.stringify(updated.slice(0, 50))); // Limit to 50 items
+    const MAX_ITEMS = 20;
+    const persistable = updated.slice(0, MAX_ITEMS).map(g => ({
+      id: g.id,
+      prompt: g.prompt,
+      model: g.model,
+      timestamp: g.timestamp,
+      type: g.type,
+      url: g.url && !g.url.startsWith('data:') ? g.url : undefined
+    }));
+    try {
+      localStorage.setItem('nc_gallery', JSON.stringify(persistable));
+    } catch (e) {
+      try {
+        const lightweight = persistable.map(g => ({ ...g, url: undefined }));
+        localStorage.setItem('nc_gallery', JSON.stringify(lightweight));
+      } catch {}
+    }
   };
 
   const getColorName = (hex: string): string => {
@@ -583,15 +602,41 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
   const handleUploadImage = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (file && fabricRef.current) {
+      console.log('handleUploadImage file', { name: file.name, size: (file as any).size, type: (file as any).type });
       const reader = new FileReader();
       reader.onload = (f) => {
         const data = f.target?.result;
-        window.fabric.Image.fromURL(data, (img: any) => {
-          img.scaleToWidth(300);
-          fabricRef.current.add(img);
-          fabricRef.current.centerObject(img);
-          fabricRef.current.setActiveObject(img);
-        });
+        (async () => {
+          let imageUrl: string = typeof data === 'string' ? data : '';
+          if (imageUrl.startsWith('data:')) {
+            try {
+              const uploadedUrl = await aiService.uploadImageDataUrl(imageUrl, 'uploads');
+              try {
+                const head = await fetch(uploadedUrl, { method: 'HEAD' });
+                imageUrl = head.ok ? uploadedUrl : imageUrl;
+                console.log('HEAD check', { url: uploadedUrl, ok: head.ok, status: head.status });
+              } catch {
+                imageUrl = uploadedUrl;
+              }
+            } catch {}
+          }
+          const imgEl = new Image();
+          imgEl.crossOrigin = 'anonymous';
+          imgEl.onload = () => {
+            const img = new window.fabric.Image(imgEl);
+            img.scaleToWidth(300);
+            fabricRef.current.add(img);
+            fabricRef.current.centerObject(img);
+            fabricRef.current.setActiveObject(img);
+            fabricRef.current.requestRenderAll();
+            console.log('fabric image added', { width: img.getScaledWidth?.(), height: img.getScaledHeight?.(), url: imageUrl });
+          };
+          imgEl.onerror = (ev) => {
+            console.error('image load error', { url: imageUrl, ev });
+          };
+          imgEl.src = imageUrl;
+          addToGallery({ id: Date.now().toString(), url: imageUrl, prompt: '', model: ModelType.NANO_BANANA_1, timestamp: Date.now(), type: 'image' });
+        })();
       };
       reader.readAsDataURL(file);
     }
@@ -707,28 +752,39 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
       }
 
       const { imageUrl: returnedUrl, imageBase64 } = await aiService.generateContent({ prompt: finalPrompt, model, images: imagesPayload, referenceWidth: refWidth, referenceHeight: refHeight });
-      const imageUrl = returnedUrl || (imageBase64 ? `data:image/png;base64,${imageBase64}` : undefined);
+      let imageUrl = returnedUrl || (imageBase64 ? `data:image/png;base64,${imageBase64}` : undefined);
       if (imageUrl) {
-        
-        // Add to Gallery
-        addToGallery({
-            id: Date.now().toString(),
-            url: imageUrl,
-            prompt: finalPrompt,
-            model: model,
-            timestamp: Date.now(),
-            type: 'image'
-        });
+        // HEAD 可达性检查与回退
+        if (!imageUrl.startsWith('data:')) {
+          try {
+            const head = await fetch(imageUrl, { method: 'HEAD' });
+            console.log('HEAD check (generate)', { url: imageUrl, ok: head.ok, status: head.status });
+            if (!head.ok && imageBase64) imageUrl = `data:image/png;base64,${imageBase64}`;
+          } catch (e) {
+            console.warn('HEAD check failed (generate)', { url: imageUrl, e });
+          }
+        }
 
-        window.fabric.Image.fromURL(imageUrl, (img: any) => {
-          if (visualWidth > 0) img.scaleToWidth(visualWidth);
+        // Add to Gallery
+        addToGallery({ id: Date.now().toString(), url: imageUrl, prompt: finalPrompt, model: model, timestamp: Date.now(), type: 'image' });
+
+        const imgEl = new Image();
+        imgEl.crossOrigin = 'anonymous';
+        imgEl.onload = () => {
+          const img = new window.fabric.Image(imgEl);
+          if (visualWidth > 0) img.scaleToWidth(visualWidth); else img.scaleToWidth(400);
           img.set({ left: targetX, top: targetY });
           img.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
           canvas.add(img);
           canvas.setActiveObject(img);
-          canvas.renderAll();
+          canvas.requestRenderAll();
           setHasSelection(true);
-        });
+          console.log('fabric image added (generate)', { width: img.getScaledWidth?.(), height: img.getScaledHeight?.(), url: imageUrl });
+        };
+        imgEl.onerror = (ev) => {
+          console.error('image load error (generate)', { url: imageUrl, ev });
+        };
+        imgEl.src = imageUrl;
       }
     } catch (error) {
       console.error("Generation failed:", error);
