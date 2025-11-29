@@ -373,7 +373,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
               });
            }
           canvas.add(activeShape);
-          canvas.bringToFront(activeShape);
+          if (typeof (activeShape as any).bringToFront === 'function') (activeShape as any).bringToFront();
            canvas.selection = false; 
         } else if (tool === 'text') {
            const text = new fabric.IText('Type Here', {
@@ -384,7 +384,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
              fontSize: props.fontSize || 32,
            });
           canvas.add(text);
-          canvas.bringToFront(text);
+          if (typeof (text as any).bringToFront === 'function') (text as any).bringToFront();
           canvas.setActiveObject(text);
            setActiveTool('select');
         }
@@ -496,7 +496,9 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         }
       }
     };
-    window.addEventListener('keydown', handleKeyDown);
+    if (containerRef.current) {
+      containerRef.current.addEventListener('keydown', handleKeyDown as any);
+    }
     
     // Robust Resize Handling using ResizeObserver for container
     const resizeObserver = new ResizeObserver((entries) => {
@@ -518,7 +520,9 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
     return () => {
       if (initRequestRef.current) cancelAnimationFrame(initRequestRef.current);
       window.removeEventListener('openPromptPopup', handleOpenPromptPopup as EventListener);
-      window.removeEventListener('keydown', handleKeyDown);
+      if (containerRef.current) {
+        containerRef.current.removeEventListener('keydown', handleKeyDown as any);
+      }
       resizeObserver.disconnect();
       if (renderLoopId.current) cancelAnimationFrame(renderLoopId.current);
       if (fabricRef.current) {
@@ -600,7 +604,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         window.fabric.Image.fromURL(dataURL, (img: any) => {
             img.set({ left: left, top: top, scaleX: 0.5, scaleY: 0.5 });
             canvas.add(img);
-            canvas.bringToFront(img);
+            if (typeof (img as any).bringToFront === 'function') (img as any).bringToFront();
             canvas.setActiveObject(img);
             canvas.renderAll();
         });
@@ -634,7 +638,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
             const img = new window.fabric.Image(imgEl);
             img.scaleToWidth(300);
             fabricRef.current.add(img);
-            fabricRef.current.bringToFront(img);
+            if (typeof (img as any).bringToFront === 'function') (img as any).bringToFront();
             fabricRef.current.centerObject(img);
             fabricRef.current.setActiveObject(img);
             fabricRef.current.requestRenderAll();
@@ -744,7 +748,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
           if (visualWidth > 0) fabricVid.scaleToWidth(visualWidth); else fabricVid.scaleToWidth(400);
           fabricVid.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
           canvas.add(fabricVid);
-          canvas.bringToFront(fabricVid);
+          if (typeof (fabricVid as any).bringToFront === 'function') (fabricVid as any).bringToFront();
           canvas.setActiveObject(fabricVid);
           canvas.renderAll();
            setHasSelection(true);
@@ -779,7 +783,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
           img.set({ left: targetX, top: targetY });
           img.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
           canvas.add(img);
-          canvas.bringToFront(img);
+          if (typeof (img as any).bringToFront === 'function') (img as any).bringToFront();
           canvas.setActiveObject(img);
           canvas.requestRenderAll();
           setHasSelection(true);
@@ -864,7 +868,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
                 prompt={promptPopup.prompt}
                 onClose={() => setPromptPopup(prev => ({ ...prev, visible: false }))}
               />
-              <div ref={containerRef} className="absolute inset-0 z-0 bg-white touch-none pointer-events-auto">
+              <div ref={containerRef} tabIndex={0} onMouseDown={() => containerRef.current?.focus()} className="absolute inset-0 z-0 bg-white touch-none pointer-events-auto">
                 <canvas ref={canvasRef} />
                 <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-[#0B1220]/80 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-300 pointer-events-none border border-white/20 select-none shadow-lg">
                     {currentProject?.name} • Right-click objects for AI actions • Alt+Drag to Pan

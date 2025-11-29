@@ -52,11 +52,20 @@ export class NanoAI {
     const { prompt, model, images } = options;
 
     const imageDataUrl = images && images.length > 0 ? `data:image/png;base64,${images[0]}` : undefined;
+    let contextImageUrl: string | undefined = undefined;
+    if (imageDataUrl && imageDataUrl.startsWith('data:')) {
+      try {
+        const uploaded = await this.uploadToCloudflare(imageDataUrl, 'ai-context');
+        contextImageUrl = uploaded.display || uploaded.url;
+      } catch (e) {
+        console.warn('upload context image failed, will send base64 (may 413)', e);
+      }
+    }
 
     const response = await fetch('/api/ai/image/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, model, image: imageDataUrl })
+      body: JSON.stringify(contextImageUrl ? { prompt, model, imageUrl: contextImageUrl } : { prompt, model, image: imageDataUrl })
     });
 
     const result = await response.json();
