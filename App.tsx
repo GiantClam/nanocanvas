@@ -644,14 +644,15 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
           const imgEl = new Image();
           imgEl.crossOrigin = 'anonymous';
           imgEl.onload = () => {
-            const img = new window.fabric.Image(imgEl);
-            img.scaleToWidth(300);
-            fabricRef.current.add(img);
-            if (typeof (img as any).bringToFront === 'function') (img as any).bringToFront();
-            fabricRef.current.centerObject(img);
-            fabricRef.current.setActiveObject(img);
-            fabricRef.current.requestRenderAll();
-            console.log('fabric image added', { width: img.getScaledWidth?.(), height: img.getScaledHeight?.(), url: imageUrl });
+          const img = new window.fabric.Image(imgEl);
+          img.scaleToWidth(300);
+          fabricRef.current.add(img);
+          if (typeof (img as any).bringToFront === 'function') (img as any).bringToFront();
+          img.set('sourceUrl', imageUrl);
+          fabricRef.current.centerObject(img);
+          fabricRef.current.setActiveObject(img);
+          fabricRef.current.requestRenderAll();
+          console.log('fabric image added', { width: img.getScaledWidth?.(), height: img.getScaledHeight?.(), url: imageUrl });
           };
           imgEl.onerror = (ev) => {
             console.error('image load error', { url: imageUrl, ev });
@@ -743,25 +744,42 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
 
       if (model === ModelType.VEO_FAST || model === ModelType.VEO_HQ) {
          try {
-           const videoUrl = await aiService.generateVideoContent({ prompt: finalPrompt, model, images: imagesPayload });
+           let contextUrl: string | undefined;
+           const activeObjForVideo = canvas.getActiveObject();
+           if (activeObjForVideo && (activeObjForVideo as any).type === 'image') {
+             const srcUrl = (activeObjForVideo as any).sourceUrl;
+             if (typeof srcUrl === 'string' && srcUrl.startsWith('http')) contextUrl = srcUrl;
+           }
+           const videoUrl = await aiService.generateVideoContent({ prompt: finalPrompt, model, images: imagesPayload, imageUrl: contextUrl });
            addToGallery({ id: Date.now().toString(), url: videoUrl, prompt: finalPrompt, model: model, timestamp: Date.now(), type: 'video' });
-           const videoEl = document.createElement('video');
-           videoEl.src = videoUrl;
-           videoEl.crossOrigin = 'anonymous';
-           videoEl.loop = true;
-           videoEl.muted = true;
-           videoEl.width = 1280;
-           videoEl.height = 720;
-           videoEl.play();
+          const videoEl = document.createElement('video');
+          videoEl.src = videoUrl;
+          videoEl.crossOrigin = 'anonymous';
+          videoEl.loop = true;
+          videoEl.muted = false;
+          videoEl.controls = true;
+          videoEl.width = 1280;
+          videoEl.height = 720;
+          videoEl.addEventListener('click', () => { if (videoEl.paused) videoEl.play(); else videoEl.pause(); });
           const fabricVid = new window.fabric.Image(videoEl, { left: targetX, top: targetY, objectCaching: false });
           if (visualWidth > 0) fabricVid.scaleToWidth(visualWidth); else fabricVid.scaleToWidth(400);
           fabricVid.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
           canvas.add(fabricVid);
           if (typeof (fabricVid as any).bringToFront === 'function') (fabricVid as any).bringToFront();
+          let rafId: number | null = null;
+          const tick = () => {
+            if (!videoEl.paused && !videoEl.ended) {
+              fabricVid.set('dirty', true);
+              canvas.requestRenderAll();
+              rafId = requestAnimationFrame(tick);
+            }
+          };
+          videoEl.addEventListener('play', () => { if (!rafId) tick(); });
+          videoEl.addEventListener('pause', () => { if (rafId) { cancelAnimationFrame(rafId); rafId = null; } });
           canvas.setActiveObject(fabricVid);
           canvas.renderAll();
-           setHasSelection(true);
-           return;
+          setHasSelection(true);
+          return;
          } catch (e) {
            console.warn('video generation failed, fallback to image', e);
          }
@@ -793,6 +811,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
           img.set('aiData', { prompt: finalPrompt, model: model, timestamp: Date.now() } as AIData);
           canvas.add(img);
           if (typeof (img as any).bringToFront === 'function') (img as any).bringToFront();
+          img.set('sourceUrl', imageUrl);
           canvas.setActiveObject(img);
           canvas.requestRenderAll();
           setHasSelection(true);

@@ -6,6 +6,7 @@ export interface GenerateOptions {
   images?: string[];
   referenceWidth?: number;
   referenceHeight?: number;
+  imageUrl?: string;
 }
 
 export class NanoAI {
@@ -103,13 +104,26 @@ export class NanoAI {
     const { prompt, model, images } = options;
 
     const imageDataUrl = images && images.length > 0 ? `data:image/png;base64,${images[0]}` : undefined;
+    let contextImageUrl: string | undefined;
+    if (imageDataUrl) {
+      try {
+        const uploaded = await this.uploadToCloudflare(imageDataUrl, 'ai-context');
+        contextImageUrl = uploaded.display || uploaded.url;
+      } catch (e) {
+        console.warn('upload video context image failed, will attempt base64 (risk 413)', e);
+      }
+    }
 
     // Currently server does not implement generation; it supports saving provided videoUrl/videoDataBase64 to R2.
     // Here we just return an error until real generation flow is implemented.
     const response = await fetch('/api/ai/video/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ prompt, model, imageDataUrl })
+      body: JSON.stringify(
+        contextImageUrl
+          ? { prompt, model, imageUrl: contextImageUrl }
+          : { prompt, model, imageDataUrl }
+      )
     });
 
     const maybeText = await response.text();
