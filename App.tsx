@@ -742,7 +742,8 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         }
       }
 
-      if (model === ModelType.VEO_FAST || model === ModelType.VEO_HQ) {
+      const isVideoModel = model === ModelType.VEO_FAST || model === ModelType.VEO_HQ;
+      if (isVideoModel) {
          try {
            let contextUrl: string | undefined;
            const activeObjForVideo = canvas.getActiveObject();
@@ -781,11 +782,16 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
           setHasSelection(true);
           return;
          } catch (e) {
-           console.warn('video generation failed, fallback to image', e);
+           console.error('video generation failed', e);
+           return;
          }
       }
 
-      const { imageUrl: returnedUrl, imageBase64 } = await aiService.generateContent({ prompt: finalPrompt, model, images: imagesPayload, referenceWidth: refWidth, referenceHeight: refHeight });
+      // Image generation only when model is not a video model
+      const { imageUrl: returnedUrl, imageBase64 } =
+        isVideoModel
+          ? { imageUrl: undefined, imageBase64: undefined }
+          : await aiService.generateContent({ prompt: finalPrompt, model, images: imagesPayload, referenceWidth: refWidth, referenceHeight: refHeight });
       let imageUrl = returnedUrl || (imageBase64 ? `data:image/png;base64,${imageBase64}` : undefined);
       if (imageUrl) {
         // HEAD 可达性检查与回退
