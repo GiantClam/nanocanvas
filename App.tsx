@@ -311,6 +311,24 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         target.set({ left: newLeft, top: newTop });
       });
 
+      canvas.on('selection:created', (e: any) => {
+        const obj = e.selected && e.selected[0];
+        if (!obj) return;
+        // Ensure controls are visible and aiData is recognized
+        obj.hasControls = true;
+        obj.hasBorders = true;
+        const hasPrompt = !!(obj as any).aiData?.prompt;
+        console.log('selection:created', { hasPrompt });
+      });
+      canvas.on('selection:updated', (e: any) => {
+        const obj = e.selected && e.selected[0];
+        if (!obj) return;
+        obj.hasControls = true;
+        obj.hasBorders = true;
+        const hasPrompt = !!(obj as any).aiData?.prompt;
+        console.log('selection:updated', { hasPrompt });
+      });
+
       canvas.on('mouse:down', function(opt: any) {
         const evt = opt.e;
         if (opt.button === 3 || opt.e.button === 2) {
