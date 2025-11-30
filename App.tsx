@@ -539,9 +539,13 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         if (activeTool === 'select') {
            fabricRef.current.defaultCursor = 'default';
            fabricRef.current.isDrawingMode = false;
+           fabricRef.current.selection = true;
+           fabricRef.current.skipTargetFind = false;
         } else if (activeTool === 'move') {
            fabricRef.current.defaultCursor = 'grab';
            fabricRef.current.isDrawingMode = false;
+           fabricRef.current.selection = true;
+           fabricRef.current.skipTargetFind = false;
         } else if (activeTool === 'draw') {
            fabricRef.current.isDrawingMode = true;
            if (!fabricRef.current.freeDrawingBrush && (window as any).fabric?.PencilBrush) {
@@ -551,10 +555,15 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
               fabricRef.current.freeDrawingBrush.color = selectedProperties.stroke;
               fabricRef.current.freeDrawingBrush.width = selectedProperties.strokeWidth;
            }
+           // 在绘制模式下，避免点击图片时触发选中，确保直接在其上方绘制
+           fabricRef.current.selection = false;
+           fabricRef.current.skipTargetFind = true;
         } else {
            fabricRef.current.defaultCursor = 'crosshair';
            fabricRef.current.isDrawingMode = false;
            fabricRef.current.discardActiveObject();
+           fabricRef.current.selection = false;
+           fabricRef.current.skipTargetFind = true;
            fabricRef.current.requestRenderAll();
         }
      }
