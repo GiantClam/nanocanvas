@@ -951,7 +951,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
       setFeedbackText('');
       setFeedbackEmail('');
       setFeedbackOpen(false);
-      setTip({ visible: true, message: '反馈已提交，感谢您的意见', type: 'warning' });
+      setTip({ visible: true, message: 'Feedback submitted. Thank you!', type: 'warning' });
       setTimeout(() => setTip(prev => ({ ...prev, visible: false })), 3000);
     } catch (e) {
       const queueStr = localStorage.getItem('nc_feedback_queue');
@@ -961,7 +961,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
       setFeedbackText('');
       setFeedbackEmail('');
       setFeedbackOpen(false);
-      setTip({ visible: true, message: '反馈已保存到本地队列', type: 'warning' });
+      setTip({ visible: true, message: 'Feedback saved to local queue', type: 'warning' });
       setTimeout(() => setTip(prev => ({ ...prev, visible: false })), 3000);
     } finally {
       setFeedbackSubmitting(false);
@@ -1054,10 +1054,10 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
           <button
             className="absolute bottom-6 right-6 z-50 px-3 py-2 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-500 flex items-center gap-2"
             onClick={() => setFeedbackOpen(true)}
-            title="反馈"
+            title="Feedback"
           >
             <MessageCircle size={16} />
-            反馈
+            Feedback
           </button>
 
           {feedbackOpen && (
@@ -1066,7 +1066,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
                 <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
                   <div className="flex items-center gap-2 text-slate-800 text-sm font-semibold">
                     <Bug size={16} />
-                    意见与问题反馈
+                    Feedback & Bug Report
                   </div>
                   <button className="text-slate-500 hover:text-slate-800" onClick={() => setFeedbackOpen(false)}>
                     <X size={16} />
@@ -1077,13 +1077,13 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
                     type="email"
                     value={feedbackEmail}
                     onChange={(e) => setFeedbackEmail(e.target.value)}
-                    placeholder="邮箱（可选，便于联系）"
+                    placeholder="Email (optional)"
                     className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
                   />
                   <textarea
                     value={feedbackText}
                     onChange={(e) => setFeedbackText(e.target.value)}
-                    placeholder="请描述您的建议或遇到的 bug"
+                    placeholder="Describe your suggestion or bug"
                     className="w-full h-32 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
                   />
                   <div className="flex justify-end gap-2">
@@ -1092,14 +1092,14 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
                       onClick={() => setFeedbackOpen(false)}
                       disabled={feedbackSubmitting}
                     >
-                      取消
+                      Cancel
                     </button>
                     <button
                       className="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-slate-300"
                       onClick={handleSubmitFeedback}
                       disabled={feedbackSubmitting || !feedbackText.trim()}
                     >
-                      提交
+                      Submit
                     </button>
                   </div>
                 </div>
