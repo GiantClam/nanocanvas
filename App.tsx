@@ -47,6 +47,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
     const allowAnon = process.env.NEXT_PUBLIC_ALLOW_ANONYMOUS === 'true';
     status = allowAnon ? 'authenticated' : 'unauthenticated';
   }
+  const [authOk, setAuthOk] = useState(false);
 
   // Style State
   const [selectedProperties, setSelectedProperties] = useState<SelectedProperties>({
@@ -174,6 +175,15 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
       } catch {}
     };
     window.addEventListener('useTemplateCreateCanvas', handleUseTemplate as EventListener);
+
+    (async () => {
+      try {
+        const res = await fetch('/api/points', { method: 'GET' });
+        setAuthOk(res.ok);
+      } catch {
+        setAuthOk(false);
+      }
+    })();
 
     try {
       const stored = sessionStorage.getItem('nc_initial_prompt');
@@ -752,7 +762,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
 
   const handleGenerate = async (prompt: string, model: ModelType) => {
     if (!fabricRef.current) return;
-    if (status !== 'authenticated') {
+    if (!(status === 'authenticated' || authOk)) {
       setTip({ visible: true, message: '请先登录后再使用 AI 生成功能', type: 'warning' });
       setTimeout(() => setTip(prev => ({ ...prev, visible: false })), 3000);
       return;
@@ -1025,7 +1035,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
               <AIPanel 
                 onGenerate={handleGenerate} 
                 isGenerating={isGenerating} 
-                isAuthenticated={status === 'authenticated'}
+                isAuthenticated={status === 'authenticated' || authOk}
                 hasSelection={hasSelection}
               />
               <ContextMenu 
