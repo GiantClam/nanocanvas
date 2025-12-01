@@ -16,17 +16,23 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
   const [tasks, setTasks] = useState<Task[]>([]);
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [activeView, setActiveView] = useState<'tasks' | 'library'>('tasks');
+  const SHOW_VIDEO_MODELS = false;
   
   const handleTemplateSelect = (t: Template) => {
     setPrompt(t.promptTemplate);
     
     // Auto-switch model based on template type
     if (t.type === 'video') {
-        if (selectedModel !== ModelType.VEO_FAST && selectedModel !== ModelType.VEO_HQ) {
-            setSelectedModel(ModelType.VEO_FAST);
+        if (SHOW_VIDEO_MODELS) {
+            if (selectedModel !== ModelType.VEO_FAST && selectedModel !== ModelType.VEO_HQ) {
+                setSelectedModel(ModelType.VEO_FAST);
+            }
+        } else {
+            if (selectedModel === ModelType.VEO_FAST || selectedModel === ModelType.VEO_HQ) {
+                setSelectedModel(ModelType.NANO_BANANA_2);
+            }
         }
     } else {
-        // If template is image-based (create/edit) but a video model is selected, switch to Nano 1
         if (selectedModel === ModelType.VEO_FAST || selectedModel === ModelType.VEO_HQ) {
             setSelectedModel(ModelType.NANO_BANANA_1);
         }
@@ -119,8 +125,8 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
           {/* Controls Section (Always Visible) */}
           <div className="px-4 pt-4 pb-2 space-y-3 shrink-0">
              {/* Unified Model Selector */}
-             <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Model</div>
-             <div className="grid grid-cols-4 gap-1 p-1 bg-black/40 border border-white/10 rounded-lg">
+            <div className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Model</div>
+            <div className={`grid ${SHOW_VIDEO_MODELS ? 'grid-cols-4' : 'grid-cols-2'} gap-1 p-1 bg-black/40 border border-white/10 rounded-lg`}>
                 <button
                     onClick={() => setSelectedModel(ModelType.NANO_BANANA_1)}
                     className={`py-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-md transition-all truncate ${
@@ -143,28 +149,32 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
                 >
                     Image HQ
                 </button>
-                <button
-                    onClick={() => setSelectedModel(ModelType.VEO_FAST)}
-                    className={`py-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-md transition-all truncate ${
-                        selectedModel === ModelType.VEO_FAST
-                        ? 'bg-rose-600 text-white shadow-sm'
-                        : 'text-slate-300 hover:text-white hover:bg-white/5'
-                    }`}
-                    title="Video Fast"
-                >
-                    Video Fast
-                </button>
-                <button
-                    onClick={() => setSelectedModel(ModelType.VEO_HQ)}
-                    className={`py-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-md transition-all truncate ${
-                        selectedModel === ModelType.VEO_HQ
-                        ? 'bg-rose-800 text-white shadow-sm'
-                        : 'text-slate-300 hover:text-white hover:bg-white/5'
-                    }`}
-                    title="Video HQ"
-                >
-                    Video HQ
-                </button>
+                {SHOW_VIDEO_MODELS && (
+                  <>
+                    <button
+                        onClick={() => setSelectedModel(ModelType.VEO_FAST)}
+                        className={`py-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-md transition-all truncate ${
+                            selectedModel === ModelType.VEO_FAST
+                            ? 'bg-rose-600 text-white shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-white/5'
+                        }`}
+                        title="Video Fast"
+                    >
+                        Video Fast
+                    </button>
+                    <button
+                        onClick={() => setSelectedModel(ModelType.VEO_HQ)}
+                        className={`py-1.5 text-[9px] font-semibold uppercase tracking-wide rounded-md transition-all truncate ${
+                            selectedModel === ModelType.VEO_HQ
+                            ? 'bg-rose-800 text-white shadow-sm'
+                            : 'text-slate-300 hover:text-white hover:bg-white/5'
+                        }`}
+                        title="Video HQ"
+                    >
+                        Video HQ
+                    </button>
+                  </>
+                )}
              </div>
 
              {/* Context Indicator */}
