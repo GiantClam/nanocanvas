@@ -1,5 +1,7 @@
 
 import React, { useEffect, useRef, useState, useMemo } from 'react';
+import { useRouter } from 'next/navigation';
+import { signIn, useSession } from 'next-auth/react';
 import Toolbar from './components/Toolbar';
 import AIPanel from './components/AIPanel';
 import ContextMenu from './components/ContextMenu';
@@ -11,6 +13,7 @@ import { NanoAI, GenerateOptions } from './services/aiService';
 const DEFAULT_API_KEY = "";
 
 const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingEvent }) => {
+  const router = useRouter();
   // Editor State
   const [currentProject, setCurrentProject] = useState<Project | null>(null);
   const [gallery, setGallery] = useState<GalleryItem[]>([]);
@@ -35,6 +38,14 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
   const [hasSelection, setHasSelection] = useState(false);
   const [contextMenu, setContextMenu] = useState<ContextMenuState>({ visible: false, x: 0, y: 0, hasSelection: false });
   const [promptPopup, setPromptPopup] = useState<{ visible: boolean; x: number; y: number; prompt: string }>({ visible: false, x: 0, y: 0, prompt: '' });
+  const [tip, setTip] = useState<{ visible: boolean; message: string; type: 'warning' | 'error' }>({ visible: false, message: '', type: 'warning' });
+  let status: 'authenticated' | 'unauthenticated' | 'loading' = 'unauthenticated';
+  try {
+    status = useSession().status;
+  } catch (e) {
+    const allowAnon = process.env.NEXT_PUBLIC_ALLOW_ANONYMOUS === 'true';
+    status = allowAnon ? 'authenticated' : 'unauthenticated';
+  }
 
   // Style State
   const [selectedProperties, setSelectedProperties] = useState<SelectedProperties>({
@@ -140,6 +151,42 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
       });
     };
     window.addEventListener('openPromptPopup', handleOpenPromptPopup as EventListener);
+    const handleUseTemplate = (e: CustomEvent) => {
+      const p = (e as any).detail?.prompt || '';
+      const name = (e as any).detail?.name || 'Untitled Project';
+      if (fabricRef.current) {
+        try {
+          const canvas = fabricRef.current;
+          const objs = canvas.getObjects();
+          objs.forEach((o: any) => canvas.remove(o));
+          canvas.requestRenderAll();
+        } catch {}
+      }
+      setCurrentProject({ id: Date.now().toString(), name, thumbnail: '', data: {}, createdAt: Date.now(), updatedAt: Date.now() });
+      try {
+        window.dispatchEvent(new CustomEvent('aiPanelSetPrompt', { detail: { prompt: p } }));
+      } catch {}
+    };
+    window.addEventListener('useTemplateCreateCanvas', handleUseTemplate as EventListener);
+
+    try {
+      const stored = sessionStorage.getItem('nc_initial_prompt');
+      if (stored && typeof stored === 'string') {
+        window.dispatchEvent(new CustomEvent('aiPanelSetPrompt', { detail: { prompt: stored } }));
+        sessionStorage.removeItem('nc_initial_prompt');
+      }
+      const tplStr = sessionStorage.getItem('selectedTemplate');
+      if (tplStr && typeof tplStr === 'string') {
+        try {
+          const tpl = JSON.parse(tplStr);
+          const p = (tpl && tpl.prompt) || '';
+          if (p) {
+            window.dispatchEvent(new CustomEvent('aiPanelSetPrompt', { detail: { prompt: p } }));
+          }
+        } catch {}
+        sessionStorage.removeItem('selectedTemplate');
+      }
+    } catch {}
 
     // Main initialization function
     const attemptInit = () => {
@@ -537,7 +584,8 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
 
     return () => {
       if (initRequestRef.current) cancelAnimationFrame(initRequestRef.current);
-      window.removeEventListener('openPromptPopup', handleOpenPromptPopup as EventListener);
+    window.removeEventListener('openPromptPopup', handleOpenPromptPopup as EventListener);
+    window.removeEventListener('useTemplateCreateCanvas', handleUseTemplate as EventListener);
       if (containerRef.current) {
         containerRef.current.removeEventListener('keydown', handleKeyDown as any);
       }
@@ -698,6 +746,11 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
 
   const handleGenerate = async (prompt: string, model: ModelType) => {
     if (!fabricRef.current) return;
+    if (status !== 'authenticated') {
+      setTip({ visible: true, message: '请先登录后再使用 AI 生成功能', type: 'warning' });
+      setTimeout(() => setTip(prev => ({ ...prev, visible: false })), 3000);
+      return;
+    }
     setIsGenerating(true);
     try {
       const canvas = fabricRef.current;
@@ -847,9 +900,18 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         imgEl.src = imageUrl;
       }
     } catch (error) {
+      const msg = error instanceof Error ? error.message : String(error);
+      let display = '';
+      if (msg.includes('未登录') || msg.toLowerCase().includes('unauthorized') || msg.includes('401')) {
+        display = '请先登录后再使用 AI 生成功能';
+      } else if (msg.includes('积分')) {
+        display = '积分不足，请前往积分页面购买或联系管理员';
+      } else {
+        display = '生成失败，请稍后重试';
+      }
+      setTip({ visible: true, message: display, type: msg.includes('积分') || msg.includes('未登录') ? 'warning' : 'error' });
+      setTimeout(() => setTip(prev => ({ ...prev, visible: false })), 3000);
       console.error("Generation failed:", error);
-      alert("Failed to generate content. See console for details.");
-      throw error;
     } finally {
       setIsGenerating(false);
     }
@@ -885,6 +947,27 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
         `}
       </style>
       <div id="nc-root" className="relative w-full h-full bg-slate-50 text-slate-800 isolate overflow-hidden">
+        {tip.visible && (
+          <div className={`absolute top-4 right-4 z-50 px-3 py-2 rounded-lg text-sm shadow-lg flex items-center ${tip.type === 'warning' ? 'bg-amber-100 text-amber-800 border border-amber-200' : 'bg-rose-100 text-rose-800 border border-rose-200'}`}>
+            <span className="whitespace-pre-line">{tip.message}</span>
+            {tip.message.includes('登录') && (
+              <button
+                className="ml-2 px-2 py-1 bg-amber-500 text-white rounded text-xs"
+                onClick={() => signIn()}
+              >
+                登录
+              </button>
+            )}
+            {tip.message.includes('积分') && (
+              <button
+                className="ml-2 px-2 py-1 bg-amber-500 text-white rounded text-xs"
+                onClick={() => router.push('/points')}
+              >
+                积分页面
+              </button>
+            )}
+          </div>
+        )}
         
         <>
               <Toolbar 
@@ -901,6 +984,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
               <AIPanel 
                 onGenerate={handleGenerate} 
                 isGenerating={isGenerating} 
+                isAuthenticated={status === 'authenticated'}
                 hasSelection={hasSelection}
               />
               <ContextMenu 

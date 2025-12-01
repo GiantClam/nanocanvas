@@ -1,5 +1,5 @@
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { ModelType, Template, Task } from '../types';
 import TemplateSelector from './TemplateSelector';
 import { Send, Sparkles, Loader2, MousePointer2, Monitor, Minimize2, ListTodo, Library, CheckCircle2, XCircle, Clock } from 'lucide-react';
@@ -7,10 +7,11 @@ import { Send, Sparkles, Loader2, MousePointer2, Monitor, Minimize2, ListTodo, L
 interface AIPanelProps {
   onGenerate: (prompt: string, model: ModelType) => Promise<void>;
   isGenerating: boolean;
+  isAuthenticated: boolean;
   hasSelection: boolean;
 }
 
-const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelection }) => {
+const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, isAuthenticated, hasSelection }) => {
   const [prompt, setPrompt] = useState('');
   const [selectedModel, setSelectedModel] = useState<ModelType>(ModelType.NANO_BANANA_1);
   const [tasks, setTasks] = useState<Task[]>([]);
@@ -43,6 +44,26 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
 
   const handleSend = async () => {
     if (!prompt.trim() || isGenerating) return;
+
+    if (!isAuthenticated) {
+      const currentPrompt = prompt;
+      setPrompt('');
+      let taskType: 'generate' | 'edit' | 'video' = 'generate';
+      if (selectedModel === ModelType.VEO_FAST || selectedModel === ModelType.VEO_HQ) taskType = 'video';
+      else if (hasSelection) taskType = 'edit';
+
+      const newTask: Task = {
+        id: Date.now().toString(),
+        type: taskType,
+        status: 'error',
+        prompt: currentPrompt,
+        timestamp: Date.now(),
+        model: selectedModel,
+        error: '请先登录后再使用 AI 生成功能'
+      };
+      setTasks(prev => [newTask, ...prev]);
+      return;
+    }
 
     const currentPrompt = prompt;
     setPrompt('');
@@ -86,6 +107,18 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
       handleSend();
     }
   };
+
+  useEffect(() => {
+    const handler = (e: CustomEvent) => {
+      const p = (e as any).detail?.prompt || '';
+      setPrompt(p);
+      setActiveView('tasks');
+    };
+    window.addEventListener('aiPanelSetPrompt', handler as EventListener);
+    return () => {
+      window.removeEventListener('aiPanelSetPrompt', handler as EventListener);
+    };
+  }, []);
 
   return (
     <div data-ai-panel="true" className={`absolute top-4 right-4 z-50 transition-all duration-300 ease-in-out flex flex-col bg-[#0B1220]/95 backdrop-blur-xl border border-white/20 rounded-2xl shadow-2xl overflow-hidden ${isCollapsed ? 'w-16 h-16 rounded-full' : 'w-[400px] h-[calc(100vh-2rem)]'}`} style={{ transform: 'scale(0.9)', transformOrigin: 'top right' }}>
@@ -265,6 +298,11 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
           {/* Input Footer (Always Visible) */}
           <div className="p-4 border-t border-white/10 bg-[#151E2E]/80 backdrop-blur-md shrink-0 z-10">
             <div className="relative group">
+              {!isAuthenticated && (
+                <div className="mb-2 text-[11px] text-amber-300">
+                  请先登录以使用 AI 生成功能
+                </div>
+              )}
               <textarea
                 value={prompt}
                 onChange={(e) => setPrompt(e.target.value)}
@@ -274,7 +312,7 @@ const AIPanel: React.FC<AIPanelProps> = ({ onGenerate, isGenerating, hasSelectio
               />
               <button
                 onClick={handleSend}
-                disabled={isGenerating || !prompt.trim()}
+                disabled={isGenerating || !prompt.trim() || !isAuthenticated}
                 className="absolute bottom-2 right-2 p-2 bg-indigo-600 hover:bg-indigo-500 disabled:bg-white/10 disabled:text-slate-500 text-white rounded-lg transition-all shadow-lg shadow-indigo-900/30"
               >
                 {isGenerating ? <Loader2 size={16} className="animate-spin" /> : <Send size={16} />}

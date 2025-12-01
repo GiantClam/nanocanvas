@@ -182,7 +182,18 @@ const Workspace: React.FC<WorkspaceProps> = ({ onOpenProject, onCreateNew, galle
                      <p className="text-xs text-slate-500 leading-relaxed mb-5 flex-1">{template.description}</p>
                      
                      <button 
-                        onClick={() => onCreateNew(template)}
+                        onClick={() => { 
+                          onCreateNew(template);
+                          try {
+                            sessionStorage.setItem('nc_initial_prompt', template.promptTemplate || '');
+                          } catch {}
+                          try {
+                            window.dispatchEvent(new CustomEvent('useTemplateCreateCanvas', { detail: { prompt: template.promptTemplate, name: template.name } }));
+                          } catch {}
+                          try {
+                            window.location.href = '/standard-editor';
+                          } catch {}
+                        }}
                         className="w-full py-2.5 bg-slate-50 hover:bg-indigo-600 hover:text-white text-slate-600 rounded-lg text-xs font-semibold transition-all flex items-center justify-center gap-2 group/btn border border-slate-200 hover:border-indigo-600"
                      >
                         Use Template
