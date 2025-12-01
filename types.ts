@@ -2,8 +2,8 @@
 export enum ModelType {
   NANO_BANANA_1 = 'gemini-2.5-flash-image',
   NANO_BANANA_2 = 'gemini-3-pro-image-preview',
-  VEO_FAST = 'veo-2.0-generate-001',
-  VEO_HQ = 'veo-3.1-generate-preview',
+  VEO_FAST = 'veo-3.0-fast-generate-001',
+  VEO_HQ = 'veo-3.1-fast-generate-001',
 }
 
 export type TemplateType = 'create' | 'edit' | 'video';
