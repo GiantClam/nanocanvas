@@ -8,6 +8,7 @@ import ContextMenu from './components/ContextMenu';
 import PromptPopup from './components/PromptPopup';
 import { ModelType, ContextMenuState, SelectedProperties, AIData, NanoCanvasProps, Project, GalleryItem } from './types';
 import { NanoAI, GenerateOptions } from './services/aiService';
+import { MessageCircle, Bug, X } from 'lucide-react';
 
 // Default Config if none provided (for standalone running)
 const DEFAULT_API_KEY = "";
@@ -55,6 +56,11 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
     fontSize: 32,
     type: ''
   });
+
+  const [feedbackOpen, setFeedbackOpen] = useState(false);
+  const [feedbackText, setFeedbackText] = useState('');
+  const [feedbackEmail, setFeedbackEmail] = useState('');
+  const [feedbackSubmitting, setFeedbackSubmitting] = useState(false);
 
   // Load Gallery from LocalStorage
   useEffect(() => {
@@ -927,6 +933,41 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
     setContextMenu(prev => ({ ...prev, visible: false }));
   };
 
+  const handleSubmitFeedback = async () => {
+    if (!feedbackText.trim()) return;
+    setFeedbackSubmitting(true);
+    try {
+      const res = await fetch('/api/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: feedbackText, email: feedbackEmail, context: 'nanocanvas' })
+      });
+      if (!res.ok) {
+        const queueStr = localStorage.getItem('nc_feedback_queue');
+        const queue = queueStr ? JSON.parse(queueStr) : [];
+        queue.unshift({ id: Date.now(), message: feedbackText, email: feedbackEmail });
+        localStorage.setItem('nc_feedback_queue', JSON.stringify(queue));
+      }
+      setFeedbackText('');
+      setFeedbackEmail('');
+      setFeedbackOpen(false);
+      setTip({ visible: true, message: '反馈已提交，感谢您的意见', type: 'warning' });
+      setTimeout(() => setTip(prev => ({ ...prev, visible: false })), 3000);
+    } catch (e) {
+      const queueStr = localStorage.getItem('nc_feedback_queue');
+      const queue = queueStr ? JSON.parse(queueStr) : [];
+      queue.unshift({ id: Date.now(), message: feedbackText, email: feedbackEmail });
+      localStorage.setItem('nc_feedback_queue', JSON.stringify(queue));
+      setFeedbackText('');
+      setFeedbackEmail('');
+      setFeedbackOpen(false);
+      setTip({ visible: true, message: '反馈已保存到本地队列', type: 'warning' });
+      setTimeout(() => setTip(prev => ({ ...prev, visible: false })), 3000);
+    } finally {
+      setFeedbackSubmitting(false);
+    }
+  };
+
   return (
     <>
       <style>
@@ -969,7 +1010,7 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
           </div>
         )}
         
-        <>
+        <> 
               <Toolbar 
                 activeTool={activeTool} 
                 onSelectTool={setActiveTool} 
@@ -1008,8 +1049,63 @@ const App: React.FC<NanoCanvasProps> = ({ config, initialCanvasState, onBillingE
                 <canvas ref={canvasRef} />
                 <div className="absolute bottom-6 left-1/2 transform -translate-x-1/2 bg-[#0B1220]/80 backdrop-blur px-6 py-2 rounded-full text-[10px] text-slate-300 pointer-events-none border border-white/20 select-none shadow-lg">
                     {currentProject?.name} • Right-click objects for AI actions • Alt+Drag to Pan
+              </div>
+          </div>
+          <button
+            className="absolute bottom-6 right-6 z-50 px-3 py-2 rounded-full bg-indigo-600 text-white shadow-lg hover:bg-indigo-500 flex items-center gap-2"
+            onClick={() => setFeedbackOpen(true)}
+            title="反馈"
+          >
+            <MessageCircle size={16} />
+            反馈
+          </button>
+
+          {feedbackOpen && (
+            <div className="fixed inset-0 z-[9999] bg-black/40 backdrop-blur-sm flex items-center justify-center">
+              <div className="w-[440px] bg-white rounded-xl shadow-2xl border border-slate-200">
+                <div className="flex items-center justify-between px-4 py-3 border-b border-slate-200">
+                  <div className="flex items-center gap-2 text-slate-800 text-sm font-semibold">
+                    <Bug size={16} />
+                    意见与问题反馈
+                  </div>
+                  <button className="text-slate-500 hover:text-slate-800" onClick={() => setFeedbackOpen(false)}>
+                    <X size={16} />
+                  </button>
+                </div>
+                <div className="p-4 space-y-3">
+                  <input
+                    type="email"
+                    value={feedbackEmail}
+                    onChange={(e) => setFeedbackEmail(e.target.value)}
+                    placeholder="邮箱（可选，便于联系）"
+                    className="w-full border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500"
+                  />
+                  <textarea
+                    value={feedbackText}
+                    onChange={(e) => setFeedbackText(e.target.value)}
+                    placeholder="请描述您的建议或遇到的 bug"
+                    className="w-full h-32 border border-slate-300 rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-indigo-500 resize-none"
+                  />
+                  <div className="flex justify-end gap-2">
+                    <button
+                      className="px-3 py-2 rounded-lg border border-slate-300 text-slate-700 hover:bg-slate-50"
+                      onClick={() => setFeedbackOpen(false)}
+                      disabled={feedbackSubmitting}
+                    >
+                      取消
+                    </button>
+                    <button
+                      className="px-3 py-2 rounded-lg bg-indigo-600 text-white hover:bg-indigo-500 disabled:bg-slate-300"
+                      onClick={handleSubmitFeedback}
+                      disabled={feedbackSubmitting || !feedbackText.trim()}
+                    >
+                      提交
+                    </button>
+                  </div>
                 </div>
               </div>
+            </div>
+          )}
         </>
       </div>
     </>
