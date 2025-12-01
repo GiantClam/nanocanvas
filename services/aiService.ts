@@ -63,6 +63,23 @@ export class NanoAI {
       }
     }
 
+    // 积分扣除（按模型）
+    try {
+      const pointsResp = await fetch('/api/points/ai-generation', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ model })
+      });
+      const pointsData = await pointsResp.json();
+      if (!pointsResp.ok || !pointsData.success) {
+        this.emitBilling({ model, operation: 'image', status: 'error', costMetric: pointsData.error || 'insufficient_points' });
+        throw new Error(pointsData.error || '积分不足或扣费失败');
+      }
+    } catch (e) {
+      this.emitBilling({ model, operation: 'image', status: 'error', costMetric: e instanceof Error ? e.message : String(e) });
+      throw e;
+    }
+
     const response = await fetch('/api/ai/image/generate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
