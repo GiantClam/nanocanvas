@@ -73,10 +73,8 @@ export class NanoAI {
       const pointsData = await pointsResp.json();
       if (!pointsResp.ok || !pointsData.success) {
         const errMsg = pointsResp.status === 401
-          ? '未登录'
-          : (typeof pointsData.error === 'string' && pointsData.error.toLowerCase().includes('insufficient'))
-            ? '积分不足'
-            : (pointsData.error || '积分不足或扣费失败');
+          ? 'Please sign in'
+          : 'Insufficient points';
         this.emitBilling({ model, operation: 'image', status: 'error', costMetric: pointsData.error || 'insufficient_points' });
         throw new Error(errMsg);
       }
